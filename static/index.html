@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Khala Trading Co-Pilot</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://s3.tradingview.com/tv.js"></script>
+<style>
+  :root {
+    --navy-bg: #0a0e1a;
+    --navy-panel: #10162a;
+    --navy-border: #1e2740;
+    --gold: #d4af37;
+    --gold-dim: #8a7328;
+    --green: #22c55e;
+    --red: #ef4444;
+    --text-dim: #7a8299;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--navy-bg);
+    color: #e8eaf0;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    margin: 0;
+    min-height: 100vh;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 24px;
+    background: var(--navy-panel);
+    border-bottom: 1px solid var(--navy-border);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-name { font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+  .brand-name .fx { color: var(--gold); }
+  .tag { font-size: 10px; color: var(--gold-dim); border: 1px solid var(--gold-dim); padding: 2px 6px; border-radius: 3px; }
+  nav { display: flex; gap: 4px; }
+  nav button {
+    background: transparent; border: none; color: var(--text-dim);
+    padding: 8px 14px; cursor: pointer; font-family: inherit; font-size: 13px;
+    border-radius: 4px;
+  }
+  nav button.active { background: var(--gold); color: #0a0e1a; font-weight: 600; }
+  nav button:hover:not(.active) { background: var(--navy-border); color: #e8eaf0; }
+  .status-badge {
+    display: flex; align-items: center; gap: 6px; font-size: 11px;
+    background: rgba(34,197,94,0.1); border: 1px solid var(--green);
+    color: var(--green); padding: 4px 10px; border-radius: 12px;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+  main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+  .panel {
+    background: var(--navy-panel); border: 1px solid var(--navy-border);
+    border-radius: 8px; padding: 18px; margin-bottom: 16px;
+  }
+  .panel-title { font-size: 13px; color: var(--gold); font-weight: 600; margin-bottom: 12px; letter-spacing: 0.5px; }
+  .grid { display: grid; gap: 16px; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+  .grid-sidebar { grid-template-columns: 280px 1fr; }
+
+  .metric-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; }
+  .metric-value { font-size: 20px; font-weight: 700; }
+  .metric-value.pos { color: var(--green); }
+  .metric-value.neg { color: var(--red); }
+
+  #tv_chart_container { height: 520px; }
+
+  .symbol-list { display: flex; flex-direction: column; gap: 6px; max-height: 520px; overflow-y: auto; }
+  .symbol-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 12px; background: var(--navy-bg); border: 1px solid var(--navy-border);
+    border-radius: 6px; cursor: pointer;
+  }
+  .symbol-item.active { border-color: var(--gold); background: rgba(212,175,55,0.06); }
+  .symbol-item:hover { border-color: var(--gold-dim); }
+  .symbol-name { font-weight: 700; font-size: 13px; }
+  .symbol-sub { font-size: 10px; color: var(--text-dim); }
+  .symbol-price { text-align: right; font-size: 13px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; color: var(--text-dim); font-weight: 500; padding: 8px; border-bottom: 1px solid var(--navy-border); font-size: 10px; text-transform: uppercase; }
+  td { padding: 10px 8px; border-bottom: 1px solid var(--navy-border); }
+  .badge { padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 700; }
+  .badge.bullish, .badge.buy { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge.bearish, .badge.sell { background: rgba(239,68,68,0.15); color: var(--red); }
+
+  .bias-box { text-align: center; padding: 16px; background: var(--navy-bg); border-radius: 6px; }
+  .bias-value { font-size: 22px; font-weight: 800; margin: 6px 0; }
+  .bias-value.bearish { color: var(--red); }
+  .bias-value.bullish { color: var(--green); }
+
+  .narrative { font-size: 12px; line-height: 1.7; color: #c8cce0; }
+
+  .login-wrap { display: flex; justify-content: center; align-items: center; min-height: 60vh; }
+  .login-card { background: var(--navy-panel); border: 1px solid var(--navy-border); border-radius: 10px; padding: 32px; width: 340px; text-align: center; }
+  .login-card input {
+    width: 100%; padding: 10px; margin: 8px 0; background: var(--navy-bg);
+    border: 1px solid var(--navy-border); border-radius: 6px; color: #e8eaf0; font-family: inherit;
+  }
+  .login-card button {
+    width: 100%; padding: 10px; margin-top: 10px; background: var(--gold); color: #0a0e1a;
+    border: none; border-radius: 6px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  .error-text { color: var(--red); font-size: 12px; margin-top: 8px; }
+  .hidden { display: none !important; }
+  .tv-attribution { font-size: 10px; color: var(--text-dim); margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-name">KHALA<span class="fx"> TRADING</span></div>
+    <span class="tag">CRT + ICT ADVANCED</span>
+  </div>
+  <nav id="nav">
+    <button data-view="chart" class="active">Live Charting HUD</button>
+    <button data-view="signal">AI Sniper Telemetry</button>
+    <button data-view="ledger">Ledger &amp; Dashboard</button>
+    <button data-view="admin">Admin Portal</button>
+  </nav>
+  <div class="status-badge"><span class="dot"></span> AUTOPILOT ACTIVE</div>
+</header>
+
+<main>
+
+  <!-- CHART VIEW -->
+  <section id="view-chart" class="grid grid-sidebar">
+    <div class="panel">
+      <div class="panel-title">SELECT ACTIVE ASSET STREAM</div>
+      <div class="symbol-list" id="symbol-list"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title" id="chart-symbol-title">GOLD SPOT / USD</div>
+      <div id="tv_chart_container"></div>
+      <div class="tv-attribution">Chart powered by TradingView</div>
+    </div>
+  </section>
+
+  <!-- SIGNAL VIEW -->
+  <section id="view-signal" class="grid" style="display:none;">
+    <div class="panel">
+      <div class="panel-title" id="signal-title">AI SNIPER TELEMETRY</div>
+      <div class="grid grid-2" id="signal-content">
+        <div>Loading signal...</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEDGER VIEW -->
+  <section id="view-ledger" style="display:none;">
+    <div class="panel">
+      <div class="panel-title">PORTFOLIO SUMMARY &amp; ANALYTICS</div>
+      <div class="grid grid-4" id="ledger-summary">
+        <div><div class="metric-label">Total Closed Profit</div><div class="metric-value pos" id="m-profit">+$0.00</div></div>
+        <div><div class="metric-label">Total Closed Loss</div><div class="metric-value neg" id="m-loss">-$0.00</div></div>
+        <div><div class="metric-label">Net Profit</div><div class="metric-value" id="m-net">+$0.00</div></div>
+        <div><div class="metric-label">Total Trades</div><div class="metric-value" id="m-trades">0</div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">KHALA TRADING LIVE POSITIONS LEDGER</div>
+      <table>
+        <thead><tr><th>Symbol</th><th>Direction</th><th>Lot</th><th>Entry</th><th>Current</th><th>SL</th><th>TP1/2/3</th><th>Floating P&amp;L</th><th>Status</th></tr></thead>
+        <tbody id="ledger-rows"><tr><td colspan="9">No positions yet.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ADMIN VIEW -->
+  <section id="view-admin" style="display:none;">
+    <div id="admin-login-wrap" class="login-wrap">
+      <div class="login-card">
+        <div class="panel-title">INSTITUTIONAL ADMINISTRATIVE LOGIN</div>
+        <input id="admin-password" type="password" placeholder="Security passcode">
+        <button onclick="adminLogin()">Establish Terminal Session</button>
+        <div class="error-text hidden" id="admin-error"></div>
+      </div>
+    </div>
+    <div id="admin-dashboard" class="hidden">
+      <div class="panel">
+        <div class="panel-title">ADMIN CONTROLS</div>
+        <p style="font-size:12px;color:var(--text-dim);">Authenticated. You can open/close positions via the API directly, or extend this panel with manual trade entry controls.</p>
+        <button onclick="adminLogout()" style="background:var(--red);color:white;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-family:inherit;">Log out</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+const SYMBOLS = ['XAUUSD','EURUSD','GBPUSD','US30','NAS100','BTCUSD','XAGUSD'];
+const TV_MAP = {
+  XAUUSD: 'OANDA:XAUUSD', EURUSD: 'OANDA:EURUSD', GBPUSD: 'OANDA:GBPUSD',
+  US30: 'OANDA:US30USD', NAS100: 'OANDA:NAS100USD', BTCUSD: 'BITSTAMP:BTCUSD', XAGUSD: 'OANDA:XAGUSD'
+};
+let activeSymbol = 'XAUUSD';
+let tvWidget = null;
+
+// ---- Navigation ----
+document.getElementById('nav').addEventListener('click', (e) => {
+  if (e.target.tagName !== 'BUTTON') return;
+  document.querySelectorAll('#nav button').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  const view = e.target.dataset.view;
+  ['chart','signal','ledger','admin'].forEach(v => {
+    document.getElementById('view-' + v).style.display = (v === view) ? '' : 'none';
+  });
+  if (view === 'signal') loadSignal(activeSymbol);
+  if (view === 'ledger') loadLedger();
+});
+
+// ---- Symbol list + chart ----
+function renderSymbolList() {
+  const container = document.getElementById('symbol-list');
+  container.innerHTML = '';
+  SYMBOLS.forEach(sym => {
+    const item = document.createElement('div');
+    item.className = 'symbol-item' + (sym === activeSymbol ? ' active' : '');
+    item.innerHTML = `<div><div class="symbol-name">${sym}</div><div class="symbol-sub">Live</div></div><div class="symbol-price" id="price-${sym}">--</div>`;
+    item.onclick = () => selectSymbol(sym);
+    container.appendChild(item);
+  });
+}
+
+function selectSymbol(sym) {
+  activeSymbol = sym;
+  renderSymbolList();
+  loadChart(sym);
+  const signalView = document.getElementById('view-signal');
+  if (signalView.style.display !== 'none') loadSignal(sym);
+}
+
+function loadChart(sym) {
+  document.getElementById('chart-symbol-title').textContent = sym;
+  document.getElementById('tv_chart_container').innerHTML = '';
+  tvWidget = new TradingView.widget({
+    autosize: true,
+    symbol: TV_MAP[sym] || 'OANDA:XAUUSD',
+    interval: '5',
+    timezone: 'Etc/UTC',
+    theme: 'dark',
+    style: '1',
+    locale: 'en',
+    toolbar_bg: '#10162a',
+    enable_publishing: false,
+    hide_top_toolbar: false,
+    container_id: 'tv_chart_container',
+  });
+}
+
+async function refreshPrices() {
+  for (const sym of SYMBOLS) {
+    try {
+      const res = await fetch(`/api/price/${sym}`);
+      const data = await res.json();
+      const el = document.getElementById(`price-${sym}`);
+      if (el && data.latest_close) el.textContent = data.latest_close.toLocaleString(undefined, {maximumFractionDigits: 4});
+    } catch (e) { /* ignore individual failures */ }
+  }
+}
+
+// ---- Signal view ----
+async function loadSignal(sym) {
+  document.getElementById('signal-title').textContent = `AI SNIPER TELEMETRY — ${sym}`;
+  const content = document.getElementById('signal-content');
+  content.innerHTML = '<div>Loading signal...</div>';
+  try {
+    const res = await fetch(`/api/signal/${sym}`);
+    const s = await res.json();
+    if (s.error) { content.innerHTML = `<div>Error: ${s.error}</div>`; return; }
+    if (!s.direction) {
+      content.innerHTML = `<div class="panel"><div class="narrative">${s.reason || 'No valid setup right now.'}</div></div>`;
+      return;
+    }
+    content.innerHTML = `
+      <div class="panel">
+        <div class="bias-box">
+          <div class="metric-label">Current Bias</div>
+          <div class="bias-value ${s.direction}">${s.direction.toUpperCase()}</div>
+          <div class="metric-label">Score: ${s.score}/10 — ${s.status}</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">SIGNAL DISPATCH</div>
+        <table>
+          <tr><td>Entry</td><td>${s.entry_price}</td></tr>
+          <tr><td>Stop Loss</td><td style="color:var(--red)">${s.sl_price} (ATR x${s.atr_multiplier_used})</td></tr>
+          <tr><td>TP1</td><td style="color:var(--green)">${s.targets.tp1}</td></tr>
+          <tr><td>TP2</td><td style="color:var(--green)">${s.targets.tp2}</td></tr>
+          <tr><td>TP3 (macro)</td><td style="color:var(--green)">${s.targets.tp3}</td></tr>
+          <tr><td>Lot size</td><td>${s.lot_size}</td></tr>
+          <tr><td>Swing High / Low</td><td>${s.swing_high} / ${s.swing_low}</td></tr>
+        </table>
+      </div>
+      <div class="panel" style="grid-column: span 2;">
+        <div class="panel-title">SIGNAL REASONING</div>
+        <div class="narrative">${s.narrative}</div>
+      </div>
+    `;
+  } catch (e) {
+    content.innerHTML = `<div>Failed to load signal: ${e}</div>`;
+  }
+}
+
+// ---- Ledger view ----
+async function loadLedger() {
+  try {
+    const res = await fetch('/api/ledger');
+    const data = await res.json();
+    document.getElementById('m-profit').textContent = `+$${data.summary.total_closed_profit.toFixed(2)}`;
+    document.getElementById('m-loss').textContent = `-$${Math.abs(data.summary.total_closed_loss).toFixed(2)}`;
+    const net = data.summary.net_profit;
+    const netEl = document.getElementById('m-net');
+    netEl.textContent = `${net >= 0 ? '+' : ''}$${net.toFixed(2)}`;
+    netEl.className = 'metric-value ' + (net >= 0 ? 'pos' : 'neg');
+    document.getElementById('m-trades').textContent = data.summary.total_trades;
+
+    const rows = document.getElementById('ledger-rows');
+    if (!data.positions.length) {
+      rows.innerHTML = '<tr><td colspan="9">No positions yet.</td></tr>';
+      return;
+    }
+    rows.innerHTML = data.positions.map(p => `
+      <tr>
+        <td>${p.symbol}</td>
+        <td><span class="badge ${p.direction}">${p.direction === 'bullish' ? 'BUY' : 'SELL'}</span></td>
+        <td>${p.lot_size}</td>
+        <td>${p.entry_price}</td>
+        <td>${p.current_price ?? p.close_price ?? '--'}</td>
+        <td>${p.sl_price}</td>
+        <td>${p.tp1} / ${p.tp2} / ${p.tp3}</td>
+        <td class="${(p.floating_pnl ?? p.realized_pnl) >= 0 ? 'metric-value pos' : 'metric-value neg'}" style="font-size:12px;">
+          ${(p.floating_pnl ?? p.realized_pnl) >= 0 ? '+' : ''}$${(p.floating_pnl ?? p.realized_pnl).toFixed(2)}
+        </td>
+        <td>${p.status}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    document.getElementById('ledger-rows').innerHTML = `<tr><td colspan="9">Failed to load ledger: ${e}</td></tr>`;
+  }
+}
+
+// ---- Admin ----
+async function adminLogin() {
+  const password = document.getElementById('admin-password').value;
+  const errEl = document.getElementById('admin-error');
+  errEl.classList.add('hidden');
+  try {
+    const res = await fetch('/api/admin/login', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({password}),
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('admin-login-wrap').classList.add('hidden');
+      document.getElementById('admin-dashboard').classList.remove('hidden');
+    } else {
+      errEl.textContent = data.error || 'Login failed';
+      errEl.classList.remove('hidden');
+    }
+  } catch (e) {
+    errEl.textContent = 'Request failed: ' + e;
+    errEl.classList.remove('hidden');
+  }
+}
+
+async function adminLogout() {
+  await fetch('/api/admin/logout', {method: 'POST'});
+  document.getElementById('admin-dashboard').classList.add('hidden');
+  document.getElementById('admin-login-wrap').classList.remove('hidden');
+}
+
+// ---- Init ----
+renderSymbolList();
+window.addEventListener('load', () => {
+  loadChart(activeSymbol);
+  refreshPrices();
+  setInterval(refreshPrices, 15000);
+});
+</script>
+
+</body>
+</html>
