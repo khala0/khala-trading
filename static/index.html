@@ -123,8 +123,26 @@
     <button data-view="ledger">Ledger &amp; Dashboard</button>
     <button data-view="admin">Admin Portal</button>
   </nav>
-  <div class="status-badge"><span class="dot"></span> AUTOPILOT ACTIVE</div>
+  <div style="display:flex; align-items:center; gap:14px;">
+    <div class="status-badge"><span class="dot"></span> AUTOPILOT ACTIVE</div>
+    <div id="account-widget" style="font-size:12px; color:var(--text-dim);"></div>
+  </div>
 </header>
+
+<!-- AUTH MODAL -->
+<div id="auth-modal" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:100; display:none; align-items:center; justify-content:center;">
+  <div class="login-card" style="width:360px;">
+    <div class="panel-title" id="auth-modal-title">LOG IN</div>
+    <input id="auth-email" type="email" placeholder="Email">
+    <input id="auth-password" type="password" placeholder="Password (min 8 characters)">
+    <button onclick="submitAuth()" id="auth-submit-btn">Log In</button>
+    <div class="error-text hidden" id="auth-error"></div>
+    <div style="margin-top:12px; font-size:11px; color:var(--text-dim); cursor:pointer;" onclick="toggleAuthMode()">
+      <span id="auth-toggle-text">Don't have an account? Sign up</span>
+    </div>
+    <div style="margin-top:8px; font-size:11px; color:var(--text-dim); cursor:pointer;" onclick="closeAuthModal()">Close</div>
+  </div>
+</div>
 
 <main>
 
@@ -143,7 +161,17 @@
 
   <!-- SIGNAL VIEW -->
   <section id="view-signal" class="grid" style="display:none;">
-    <div class="panel">
+    <div id="signal-paywall" class="panel hidden" style="text-align:center; padding:40px;">
+      <div class="panel-title" style="justify-content:center;">SUBSCRIPTION REQUIRED</div>
+      <p style="color:var(--text-dim); font-size:13px; max-width:420px; margin:12px auto;">
+        AI Sniper Telemetry (live signals, SL/TP, and AI reasoning) is available to subscribers.
+        The live chart stays free to explore anytime.
+      </p>
+      <button onclick="handlePaywallCta()" id="signal-paywall-btn" style="background:var(--gold); color:#0a0e1a; border:none; padding:10px 20px; border-radius:6px; font-weight:700; cursor:pointer; font-family:inherit;">
+        Subscribe — $29/month
+      </button>
+    </div>
+    <div class="panel" id="signal-title-panel">
       <div class="panel-title" id="signal-title">AI SNIPER TELEMETRY</div>
       <div class="grid grid-2" id="signal-content">
         <div>Loading signal...</div>
@@ -153,21 +181,32 @@
 
   <!-- LEDGER VIEW -->
   <section id="view-ledger" style="display:none;">
-    <div class="panel">
-      <div class="panel-title">PORTFOLIO SUMMARY &amp; ANALYTICS</div>
-      <div class="grid grid-4" id="ledger-summary">
-        <div><div class="metric-label">Total Closed Profit</div><div class="metric-value pos" id="m-profit">+$0.00</div></div>
-        <div><div class="metric-label">Total Closed Loss</div><div class="metric-value neg" id="m-loss">-$0.00</div></div>
-        <div><div class="metric-label">Net Profit</div><div class="metric-value" id="m-net">+$0.00</div></div>
-        <div><div class="metric-label">Total Trades</div><div class="metric-value" id="m-trades">0</div></div>
-      </div>
+    <div id="ledger-paywall" class="panel hidden" style="text-align:center; padding:40px;">
+      <div class="panel-title" style="justify-content:center;">SUBSCRIPTION REQUIRED</div>
+      <p style="color:var(--text-dim); font-size:13px; max-width:420px; margin:12px auto;">
+        The Ledger &amp; Dashboard (positions and P&amp;L tracking) is available to subscribers.
+      </p>
+      <button onclick="handlePaywallCta()" style="background:var(--gold); color:#0a0e1a; border:none; padding:10px 20px; border-radius:6px; font-weight:700; cursor:pointer; font-family:inherit;">
+        Subscribe — $29/month
+      </button>
     </div>
-    <div class="panel">
-      <div class="panel-title">KHALA TRADING LIVE POSITIONS LEDGER</div>
-      <table>
-        <thead><tr><th>Symbol</th><th>Direction</th><th>Lot</th><th>Entry</th><th>Current</th><th>SL</th><th>TP1/2/3</th><th>Floating P&amp;L</th><th>Status</th></tr></thead>
-        <tbody id="ledger-rows"><tr><td colspan="9">No positions yet.</td></tr></tbody>
-      </table>
+    <div id="ledger-body-panels">
+      <div class="panel">
+        <div class="panel-title">PORTFOLIO SUMMARY &amp; ANALYTICS</div>
+        <div class="grid grid-4" id="ledger-summary">
+          <div><div class="metric-label">Total Closed Profit</div><div class="metric-value pos" id="m-profit">+$0.00</div></div>
+          <div><div class="metric-label">Total Closed Loss</div><div class="metric-value neg" id="m-loss">-$0.00</div></div>
+          <div><div class="metric-label">Net Profit</div><div class="metric-value" id="m-net">+$0.00</div></div>
+          <div><div class="metric-label">Total Trades</div><div class="metric-value" id="m-trades">0</div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">KHALA TRADING LIVE POSITIONS LEDGER</div>
+        <table>
+          <thead><tr><th>Symbol</th><th>Direction</th><th>Lot</th><th>Entry</th><th>Current</th><th>SL</th><th>TP1/2/3</th><th>Floating P&amp;L</th><th>Status</th></tr></thead>
+          <tbody id="ledger-rows"><tr><td colspan="9">No positions yet.</td></tr></tbody>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -187,6 +226,38 @@
         <p style="font-size:12px;color:var(--text-dim);">Authenticated. You can open/close positions via the API directly, or extend this panel with manual trade entry controls.</p>
         <button onclick="adminLogout()" style="background:var(--red);color:white;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-family:inherit;">Log out</button>
       </div>
+      <div class="panel">
+        <div class="panel-title">GRANT FREE ACCESS</div>
+        <p style="font-size:12px;color:var(--text-dim); margin-bottom:10px;">
+          Give a specific user account full access (Signal + Ledger tabs) without them paying through Stripe.
+          They must already have an account (they sign up normally first, at no charge).
+        </p>
+        <input id="grant-email" type="email" placeholder="user@example.com" style="width:280px; padding:8px; background:var(--navy-bg); border:1px solid var(--navy-border); border-radius:6px; color:#e8eaf0; font-family:inherit;">
+        <button onclick="grantAccess()" style="background:var(--gold); color:#0a0e1a; border:none; padding:8px 14px; border-radius:6px; font-weight:700; cursor:pointer; font-family:inherit; margin-left:8px;">Grant Free Access</button>
+        <div id="grant-result" style="font-size:12px; margin-top:8px;"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">ALL USERS</div>
+        <button onclick="loadUserList()" style="background:var(--navy-border); color:#e8eaf0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-family:inherit; margin-bottom:10px;">Refresh List</button>
+        <table>
+          <thead><tr><th>Email</th><th>Status</th><th>Last Login</th><th>Action</th></tr></thead>
+          <tbody id="user-list-rows"><tr><td colspan="4">Click "Refresh List" to load.</td></tr></tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <div class="panel-title">SIGNAL HISTORY &amp; PERFORMANCE</div>
+        <button onclick="loadSignalHistory()" style="background:var(--navy-border); color:#e8eaf0; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-family:inherit; margin-bottom:10px;">Refresh</button>
+        <div class="grid grid-4" id="signal-history-stats" style="margin-bottom:14px;">
+          <div><div class="metric-label">Win Rate</div><div class="metric-value pos" id="sh-win-rate">—</div></div>
+          <div><div class="metric-label">Loss Rate</div><div class="metric-value neg" id="sh-loss-rate">—</div></div>
+          <div><div class="metric-label">Total Signals</div><div class="metric-value" id="sh-total">0</div></div>
+          <div><div class="metric-label">Pending</div><div class="metric-value" id="sh-pending">0</div></div>
+        </div>
+        <table>
+          <thead><tr><th>Symbol</th><th>Direction</th><th>Entry</th><th>SL</th><th>TP1</th><th>Score</th><th>Generated</th><th>Outcome</th></tr></thead>
+          <tbody id="signal-history-rows"><tr><td colspan="8">Click "Refresh" to load.</td></tr></tbody>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -194,11 +265,97 @@
 
 <script>
 const SYMBOLS = ['XAUUSD','EURUSD','GBPUSD','US30','NAS100','BTCUSD','XAGUSD'];
+let authMode = 'login'; // or 'signup'
+let authState = { logged_in: false, email: null, is_subscribed: false, is_admin: false };
+
+async function refreshAuthStatus() {
+  try {
+    const res = await fetch('/api/auth/status');
+    const data = await res.json();
+    if (data.session_replaced) {
+      alert('You were logged out because this account was just logged into elsewhere. Only one device can be logged in at a time.');
+    }
+    authState = data;
+  } catch (e) { /* leave defaults */ }
+  renderAccountWidget();
+}
+
+function renderAccountWidget() {
+  const el = document.getElementById('account-widget');
+  if (authState.is_admin) {
+    el.innerHTML = `Admin`;
+  } else if (authState.logged_in) {
+    el.innerHTML = `${authState.email} ${authState.is_subscribed ? '<span style="color:var(--green)">(subscribed)</span>' : '<span style="color:var(--gold)">(free)</span>'} · <a href="#" onclick="userLogoutClick();return false;" style="color:var(--text-dim);">Log out</a>`;
+  } else {
+    el.innerHTML = `<a href="#" onclick="openAuthModal('login');return false;" style="color:var(--gold);">Log in</a> · <a href="#" onclick="openAuthModal('signup');return false;" style="color:var(--gold);">Sign up</a>`;
+  }
+}
+
+function openAuthModal(mode) {
+  authMode = mode;
+  document.getElementById('auth-modal-title').textContent = mode === 'login' ? 'LOG IN' : 'SIGN UP';
+  document.getElementById('auth-submit-btn').textContent = mode === 'login' ? 'Log In' : 'Sign Up';
+  document.getElementById('auth-toggle-text').textContent = mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Log in';
+  document.getElementById('auth-error').classList.add('hidden');
+  document.getElementById('auth-modal').style.display = 'flex';
+}
+function closeAuthModal() { document.getElementById('auth-modal').style.display = 'none'; }
+function toggleAuthMode() { openAuthModal(authMode === 'login' ? 'signup' : 'login'); }
+
+async function submitAuth() {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.classList.add('hidden');
+  const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/signup';
+  try {
+    const res = await fetch(endpoint, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({email, password}) });
+    const data = await res.json();
+    if (res.ok) {
+      closeAuthModal();
+      await refreshAuthStatus();
+      // Refresh whichever gated view is currently open
+      const activeView = document.querySelector('#nav button.active')?.dataset.view;
+      if (activeView === 'signal') loadSignal(activeSymbol);
+      if (activeView === 'ledger') loadLedger();
+    } else {
+      errEl.textContent = data.error || 'Something went wrong';
+      errEl.classList.remove('hidden');
+    }
+  } catch (e) {
+    errEl.textContent = 'Request failed: ' + e;
+    errEl.classList.remove('hidden');
+  }
+}
+
+async function userLogoutClick() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  await refreshAuthStatus();
+  const activeView = document.querySelector('#nav button.active')?.dataset.view;
+  if (activeView === 'signal') loadSignal(activeSymbol);
+  if (activeView === 'ledger') loadLedger();
+}
+
+async function handlePaywallCta() {
+  if (!authState.logged_in) { openAuthModal('login'); return; }
+  try {
+    const res = await fetch('/api/billing/create-checkout-session', { method: 'POST' });
+    const data = await res.json();
+    if (data.checkout_url) {
+      window.location.href = data.checkout_url;
+    } else {
+      alert(data.error || 'Could not start checkout');
+    }
+  } catch (e) {
+    alert('Checkout failed: ' + e);
+  }
+}
+
+let activeSymbol = 'XAUUSD';
 const TV_MAP = {
   XAUUSD: 'OANDA:XAUUSD', EURUSD: 'OANDA:EURUSD', GBPUSD: 'OANDA:GBPUSD',
   US30: 'OANDA:US30USD', NAS100: 'OANDA:NAS100USD', BTCUSD: 'BITSTAMP:BTCUSD', XAGUSD: 'OANDA:XAGUSD'
 };
-let activeSymbol = 'XAUUSD';
 let tvWidget = null;
 
 // ---- Navigation ----
@@ -268,13 +425,35 @@ async function refreshPrices() {
 async function loadSignal(sym) {
   document.getElementById('signal-title').textContent = `AI SNIPER TELEMETRY — ${sym}`;
   const content = document.getElementById('signal-content');
+  const paywall = document.getElementById('signal-paywall');
+  const titlePanel = document.getElementById('signal-title-panel');
   content.innerHTML = '<div>Loading signal...</div>';
   try {
     const res = await fetch(`/api/signal/${sym}`);
+    if (res.status === 401 || res.status === 402) {
+      paywall.classList.remove('hidden'); paywall.style.display = '';
+      titlePanel.style.display = 'none';
+      document.getElementById('signal-paywall-btn').textContent = res.status === 401 ? 'Log in to continue' : 'Subscribe — $29/month';
+      return;
+    }
+    paywall.classList.add('hidden'); paywall.style.display = 'none';
+    titlePanel.style.display = '';
     const s = await res.json();
     if (s.error) { content.innerHTML = `<div>Error: ${s.error}</div>`; return; }
     if (!s.direction) {
       content.innerHTML = `<div class="panel"><div class="narrative">${s.reason || 'No valid setup right now.'}</div></div>`;
+      return;
+    }
+    if (!s.is_signal) {
+      content.innerHTML = `
+        <div class="panel" style="grid-column: span 2; text-align:center; padding:30px;">
+          <div class="metric-label">MONITORING — NO A+ SETUP YET</div>
+          <div class="bias-value ${s.direction}" style="font-size:16px; margin:8px 0;">${s.direction.toUpperCase()} bias, current score ${s.score}/10</div>
+          <p style="color:var(--text-dim); font-size:12px; max-width:420px; margin:10px auto;">
+            Only setups scoring 8/10 or higher are dispatched as an actionable signal. This one doesn't clear that bar yet — keep watching, or check back shortly.
+          </p>
+        </div>
+      `;
       return;
     }
     content.innerHTML = `
@@ -309,8 +488,17 @@ async function loadSignal(sym) {
 
 // ---- Ledger view ----
 async function loadLedger() {
+  const paywall = document.getElementById('ledger-paywall');
+  const body = document.getElementById('ledger-body-panels');
   try {
     const res = await fetch('/api/ledger');
+    if (res.status === 401 || res.status === 402) {
+      paywall.classList.remove('hidden'); paywall.style.display = '';
+      body.style.display = 'none';
+      return;
+    }
+    paywall.classList.add('hidden'); paywall.style.display = 'none';
+    body.style.display = '';
     const data = await res.json();
     document.getElementById('m-profit').textContent = `+$${data.summary.total_closed_profit.toFixed(2)}`;
     document.getElementById('m-loss').textContent = `-$${Math.abs(data.summary.total_closed_loss).toFixed(2)}`;
@@ -359,6 +547,8 @@ async function adminLogin() {
     if (data.success) {
       document.getElementById('admin-login-wrap').classList.add('hidden');
       document.getElementById('admin-dashboard').classList.remove('hidden');
+      loadUserList();
+      loadSignalHistory();
     } else {
       errEl.textContent = data.error || 'Login failed';
       errEl.classList.remove('hidden');
@@ -375,8 +565,100 @@ async function adminLogout() {
   document.getElementById('admin-login-wrap').classList.remove('hidden');
 }
 
+async function grantAccess() {
+  const email = document.getElementById('grant-email').value.trim();
+  const resultEl = document.getElementById('grant-result');
+  if (!email) { resultEl.innerHTML = '<span style="color:var(--red)">Enter an email first</span>'; return; }
+  try {
+    const res = await fetch('/api/admin/grant-access', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({email})
+    });
+    const data = await res.json();
+    if (res.ok) {
+      resultEl.innerHTML = `<span style="color:var(--green)">Granted free access to ${data.email}</span>`;
+      document.getElementById('grant-email').value = '';
+      loadUserList();
+    } else {
+      resultEl.innerHTML = `<span style="color:var(--red)">${data.error}</span>`;
+    }
+  } catch (e) {
+    resultEl.innerHTML = `<span style="color:var(--red)">Request failed: ${e}</span>`;
+  }
+}
+
+async function revokeAccess(email) {
+  await fetch('/api/admin/revoke-access', {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({email})
+  });
+  loadUserList();
+}
+
+async function loadUserList() {
+  const rows = document.getElementById('user-list-rows');
+  rows.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+  try {
+    const res = await fetch('/api/admin/users');
+    const data = await res.json();
+    if (!data.users || !data.users.length) {
+      rows.innerHTML = '<tr><td colspan="4">No users yet.</td></tr>';
+      return;
+    }
+    rows.innerHTML = data.users.map(u => `
+      <tr>
+        <td>${u.email}</td>
+        <td>${u.is_subscribed ? '<span style="color:var(--green)">Active' + (u.subscription_status === 'comp' ? ' (comp)' : '') + '</span>' : '<span style="color:var(--text-dim)">Free tier</span>'}</td>
+        <td style="font-size:11px; color:var(--text-dim);">${u.last_login_at ? new Date(u.last_login_at * 1000).toLocaleString() + (u.last_login_ip ? ' · ' + u.last_login_ip : '') : 'Never'}</td>
+        <td>
+          ${u.is_subscribed
+            ? `<a href="#" onclick="revokeAccess('${u.email}');return false;" style="color:var(--red);">Revoke</a>`
+            : `<a href="#" onclick="document.getElementById('grant-email').value='${u.email}';grantAccess();return false;" style="color:var(--gold);">Grant free access</a>`}
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    rows.innerHTML = `<tr><td colspan="4">Failed to load: ${e}</td></tr>`;
+  }
+}
+
+async function loadSignalHistory() {
+  const rows = document.getElementById('signal-history-rows');
+  rows.innerHTML = '<tr><td colspan="8">Loading (checking outcomes against live price data)...</td></tr>';
+  try {
+    const res = await fetch('/api/admin/signal-history');
+    const data = await res.json();
+    const s = data.stats;
+    document.getElementById('sh-win-rate').textContent = s.win_rate !== null ? s.win_rate + '%' : '—';
+    document.getElementById('sh-loss-rate').textContent = s.loss_rate !== null ? s.loss_rate + '%' : '—';
+    document.getElementById('sh-total').textContent = s.total_signals;
+    document.getElementById('sh-pending').textContent = s.pending;
+
+    if (!data.history.length) {
+      rows.innerHTML = '<tr><td colspan="8">No A+ signals logged yet.</td></tr>';
+      return;
+    }
+    rows.innerHTML = data.history.map(e => {
+      const outcomeColor = e.status === 'WIN' ? 'var(--green)' : e.status === 'LOSS' ? 'var(--red)' : 'var(--text-dim)';
+      return `
+        <tr>
+          <td>${e.symbol}</td>
+          <td><span class="badge ${e.direction}">${e.direction === 'bullish' ? 'BUY' : 'SELL'}</span></td>
+          <td>${e.entry_price}</td>
+          <td>${e.sl_price}</td>
+          <td>${e.tp1}</td>
+          <td>${e.score}/10</td>
+          <td style="font-size:11px; color:var(--text-dim);">${new Date(e.generated_at * 1000).toLocaleString()}</td>
+          <td style="color:${outcomeColor}; font-weight:700;">${e.status}</td>
+        </tr>
+      `;
+    }).join('');
+  } catch (e) {
+    rows.innerHTML = `<tr><td colspan="8">Failed to load: ${e}</td></tr>`;
+  }
+}
+
 // ---- Init ----
 renderSymbolList();
+refreshAuthStatus();
 window.addEventListener('load', () => {
   loadChart(activeSymbol);
   refreshPrices();

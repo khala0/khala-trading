@@ -10,6 +10,15 @@ per asset class.
 """
 
 import statistics
+import time
+
+
+# Only setups scoring at or above this are treated as an actionable signal --
+# shown as a full dispatch on the dashboard, sent to Telegram, logged to
+# signal history, and eligible for auto-execution. Anything below this is
+# "monitoring only" (still visible, but not presented as a trade signal).
+MIN_SIGNAL_SCORE = 8
+WATCH_THRESHOLD = 6
 
 
 ASSET_ATR_MULTIPLIERS = {
@@ -164,11 +173,11 @@ def score_setup(candles, symbol='XAUUSD', account_balance=10000, risk_percent=1.
     high_valid = swing_high['price'] >= last_close
     low_valid = swing_low['price'] <= last_close
     momentum_down = last_close < prior_close
+    dist_to_high = abs(swing_high['price'] - last_close)
+    dist_to_low = abs(last_close - swing_low['price'])
 
     if high_valid and low_valid:
         # Both structurally valid -- use momentum + proximity to pick a side
-        dist_to_high = abs(swing_high['price'] - last_close)
-        dist_to_low = abs(last_close - swing_low['price'])
         if momentum_down and dist_to_high <= dist_to_low:
             direction, swing_ref = 'bearish', swing_high['price']
         elif not momentum_down and dist_to_low <= dist_to_high:
@@ -206,12 +215,59 @@ def score_setup(candles, symbol='XAUUSD', account_balance=10000, risk_percent=1.
         pip_value_per_lot=pip_value_per_lot, pip_size=pip_size,
     )
 
-    # Confluence score out of 10 -- placeholder weighting across a few checks.
-    # Extend this with real FVG/order-block/liquidity-sweep confirmations.
-    score = 5
-    score += 1 if abs(last_close - prior_close) > sl_data['atr_value'] * 0.1 else 0
-    score += 1 if (dist_to_high < sl_data['atr_value'] * 3 or dist_to_low < sl_data['atr_value'] * 3) else 0
-    score += 2 if sl_data['buffer_size'] < abs(swing_high['price'] - swing_low['price']) * 0.5 else 0
+    # Confluence score out of 10, built from four independent checks. Unlike
+    # a fixed base score, this starts at 0 -- reaching 8+ requires several
+    # of these to line up together, which is what actually reduces how often
+    # "A+ SETUP" fires (rather than just hiding low scores from the UI while
+    # nearly everything still qualified underneath).
+    stop_distance = abs(entry_price - sl_data['sl_price'])
+    last_candle = candles[-1]
+    is_bearish_candle = last_candle['close'] < last_candle['open']
+
+    # 1) Confirmation candle: did the most recent candle actually close in
+    #    the setup's direction? (0 or 2 points)
+    confirmation_pts = 2 if (
+        (direction == 'bearish' and is_bearish_candle) or
+        (direction == 'bullish' and not is_bearish_candle)
+    ) else 0
+
+    # 2) Momentum strength: is the last move meaningful relative to ATR,
+    #    or just noise? (0, 1, or 2 points)
+    momentum_size = abs(last_close - prior_close)
+    if momentum_size >= sl_data['atr_value'] * 0.5:
+        momentum_pts = 2
+    elif momentum_size >= sl_data['atr_value'] * 0.25:
+        momentum_pts = 1
+    else:
+        momentum_pts = 0
+
+    # 3) Reward potential: how far is the opposite swing point (the room to
+    #    run) relative to the stop distance (the risk)? Rewards setups with
+    #    real reward:risk, not just any valid structure. (0-4 points)
+    opposite_swing = swing_low['price'] if direction == 'bearish' else swing_high['price']
+    reward_potential = abs(entry_price - opposite_swing) / stop_distance if stop_distance > 0 else 0
+    if reward_potential >= 4:
+        reward_pts = 4
+    elif reward_potential >= 3:
+        reward_pts = 3
+    elif reward_potential >= 2:
+        reward_pts = 2
+    elif reward_potential >= 1.5:
+        reward_pts = 1
+    else:
+        reward_pts = 0
+
+    # 4) Retracement positioning (approximate OTE-style check, not exact
+    #    Fibonacci): is entry sitting in a sensible pullback zone rather
+    #    than chasing price at the extreme? (0 or 2 points)
+    swing_range = swing_high['price'] - swing_low['price']
+    position_in_range = (last_close - swing_low['price']) / swing_range if swing_range > 0 else 0.5
+    if direction == 'bearish':
+        retracement_pts = 2 if 0.5 <= position_in_range <= 0.9 else 0
+    else:
+        retracement_pts = 2 if 0.1 <= position_in_range <= 0.5 else 0
+
+    score = confirmation_pts + momentum_pts + reward_pts + retracement_pts
     score = min(score, 10)
 
     return {
@@ -228,5 +284,8 @@ def score_setup(candles, symbol='XAUUSD', account_balance=10000, risk_percent=1.
         'swing_high': round(swing_high['price'], 5),
         'swing_low': round(swing_low['price'], 5),
         'score': score,
-        'status': 'A+ SETUP' if score >= 8 else ('WATCH' if score >= 6 else 'NO TRADE'),
+        'status': 'A+ SETUP' if score >= MIN_SIGNAL_SCORE else ('WATCH' if score >= WATCH_THRESHOLD else 'NO TRADE'),
+        'is_signal': score >= MIN_SIGNAL_SCORE,
+        'generated_at': time.time(),
+        'anchor_candle_time': candles[-1].get('time'),
     }

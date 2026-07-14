@@ -3,17 +3,26 @@ KHALA TRADING -- Flask backend
 -----------------------------------
 Serves the dashboard frontend and a small JSON API:
 
-  GET  /api/price/<symbol>          recent candles + latest price
-  GET  /api/signal/<symbol>         current setup (direction, SL/TP, score, AI narrative)
-  GET  /api/ledger                  positions + P&L summary
-  POST /api/ledger/open             open a position from a confirmed setup
-  POST /api/ledger/close            close a position
+  GET  /api/price/<symbol>          recent candles + latest price (public)
+  GET  /api/signal/<symbol>         current setup (subscription or admin required)
+  GET  /api/ledger                  positions + P&L summary (subscription or admin required)
+  POST /api/ledger/open             open a position (admin only)
+  POST /api/ledger/close            close a position (admin only)
   POST /api/admin/login             simple password-gated admin session
   GET  /api/admin/check             check if current session is authenticated
 
+  POST /api/auth/signup             create a user account
+  POST /api/auth/login              log in
+  POST /api/auth/logout             log out
+  GET  /api/auth/status             current login + subscription status
+
+  POST /api/billing/create-checkout-session   start a Stripe subscription checkout
+  POST /api/billing/webhook                   Stripe webhook (payment/cancellation events)
+
 Configuration is via environment variables (see .env.example):
   GEMINI_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
-  ADMIN_PASSWORD, FLASK_SECRET_KEY
+  ADMIN_PASSWORD, FLASK_SECRET_KEY,
+  STRIPE_SECRET_KEY, STRIPE_PRICE_ID, STRIPE_WEBHOOK_SECRET
 """
 
 import os
@@ -29,6 +38,9 @@ import signal_engine
 import gemini_client
 import telegram_client
 import ledger
+import users
+import stripe_client
+import signal_history
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-change-me')
@@ -52,11 +64,45 @@ PIP_CONFIG = {
 }
 
 
+def current_user_valid():
+    """
+    Returns the logged-in user's email if their session token is still the
+    active one for that account, else None (and clears the stale session).
+    A session goes stale the moment the same account logs in elsewhere --
+    this is what stops two people sharing one login at the same time.
+    """
+    email = session.get('user_email')
+    token = session.get('session_token')
+    if not email or not token:
+        return None
+    if not users.is_session_valid(email, token):
+        session.pop('user_email', None)
+        session.pop('session_token', None)
+        return None
+    return email
+
+
 def require_admin(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         if not session.get('is_admin'):
             return jsonify({'error': 'Not authenticated'}), 401
+        return f(*args, **kwargs)
+    return wrapper
+
+
+def require_subscription(f):
+    """Allows access if the user is an admin OR a logged-in (single-session,
+    non-shared), active subscriber."""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if session.get('is_admin'):
+            return f(*args, **kwargs)
+        email = current_user_valid()
+        if not email:
+            return jsonify({'error': 'Login required', 'code': 'LOGIN_REQUIRED'}), 401
+        if not users.is_subscribed(email):
+            return jsonify({'error': 'Active subscription required', 'code': 'SUBSCRIPTION_REQUIRED'}), 402
         return f(*args, **kwargs)
     return wrapper
 
@@ -91,6 +137,7 @@ def price(symbol):
 
 
 @app.route('/api/signal/<symbol>')
+@require_subscription
 def signal(symbol):
     symbol = symbol.upper()
     if symbol not in signal_engine.ASSET_ATR_MULTIPLIERS:
@@ -110,9 +157,10 @@ def signal(symbol):
         narrative = gemini_client.generate_narrative(setup)
         setup['narrative'] = narrative
 
-        # Auto-alert on high-confidence setups only
-        if setup.get('status') == 'A+ SETUP':
+        # Auto-alert and log to history on high-confidence setups only
+        if setup.get('is_signal'):
             telegram_client.send_alert(setup, narrative)
+            signal_history.log_signal(setup)
 
         return jsonify(setup)
     except ValueError as e:
@@ -122,6 +170,7 @@ def signal(symbol):
 
 
 @app.route('/api/ledger')
+@require_subscription
 def get_ledger():
     positions = ledger.get_positions()
     pip_cfg_default = {'pip_size': 0.0001, 'pip_value_per_lot': 10.0}
@@ -189,6 +238,157 @@ def admin_logout():
 @app.route('/api/admin/check')
 def admin_check():
     return jsonify({'is_admin': bool(session.get('is_admin'))})
+
+
+# ---------------------------------------------------------------------
+# User auth (separate from admin login above)
+# ---------------------------------------------------------------------
+
+@app.route('/api/auth/signup', methods=['POST'])
+def signup():
+    data = request.get_json(force=True)
+    email = (data.get('email') or '').strip()
+    password = data.get('password') or ''
+    if not email or '@' not in email:
+        return jsonify({'error': 'Valid email required'}), 400
+    if len(password) < 8:
+        return jsonify({'error': 'Password must be at least 8 characters'}), 400
+
+    user, err = users.create_user(email, password)
+    if err:
+        return jsonify({'error': err}), 400
+
+    token = users.start_new_session(user['email'], ip=request.remote_addr)
+    session['user_email'] = user['email']
+    session['session_token'] = token
+    return jsonify({'success': True, 'email': user['email'], 'is_subscribed': user['is_subscribed']})
+
+
+@app.route('/api/auth/login', methods=['POST'])
+def user_login():
+    data = request.get_json(force=True)
+    email = (data.get('email') or '').strip()
+    password = data.get('password') or ''
+
+    if not users.verify_password(email, password):
+        return jsonify({'error': 'Invalid email or password'}), 401
+
+    email = email.lower()
+    token = users.start_new_session(email, ip=request.remote_addr)
+    session['user_email'] = email
+    session['session_token'] = token
+    return jsonify({'success': True, 'email': email, 'is_subscribed': users.is_subscribed(email)})
+
+
+@app.route('/api/auth/logout', methods=['POST'])
+def user_logout():
+    session.pop('user_email', None)
+    session.pop('session_token', None)
+    return jsonify({'success': True})
+
+
+@app.route('/api/auth/status')
+def auth_status():
+    had_stale_session = bool(session.get('user_email'))
+    email = current_user_valid()
+    return jsonify({
+        'logged_in': bool(email),
+        'email': email,
+        'is_subscribed': users.is_subscribed(email) if email else False,
+        'is_admin': bool(session.get('is_admin')),
+        'session_replaced': had_stale_session and not email,
+    })
+
+
+# ---------------------------------------------------------------------
+# Stripe billing
+# ---------------------------------------------------------------------
+
+@app.route('/api/billing/create-checkout-session', methods=['POST'])
+def create_checkout_session():
+    email = session.get('user_email')
+    if not email:
+        return jsonify({'error': 'Login required before subscribing'}), 401
+
+    base_url = request.host_url.rstrip('/')
+    checkout_url, err = stripe_client.create_checkout_session(
+        email=email,
+        success_url=f'{base_url}/?checkout=success',
+        cancel_url=f'{base_url}/?checkout=cancel',
+    )
+    if err:
+        return jsonify({'error': err}), 502
+    return jsonify({'checkout_url': checkout_url})
+
+
+@app.route('/api/billing/webhook', methods=['POST'])
+def stripe_webhook():
+    payload = request.data
+    sig_header = request.headers.get('Stripe-Signature', '')
+    try:
+        event = stripe_client.construct_webhook_event(payload, sig_header)
+    except (ValueError, Exception) as e:
+        return jsonify({'error': f'Invalid webhook: {e}'}), 400
+
+    result = stripe_client.handle_webhook_event(event)
+    return jsonify({'received': True, 'result': result})
+
+
+# ---------------------------------------------------------------------
+# Admin: comp (free) access management
+# ---------------------------------------------------------------------
+
+@app.route('/api/admin/users')
+@require_admin
+def admin_list_users():
+    return jsonify({'users': users.list_users()})
+
+
+@app.route('/api/admin/grant-access', methods=['POST'])
+@require_admin
+def admin_grant_access():
+    data = request.get_json(force=True)
+    email = (data.get('email') or '').strip()
+    if not email:
+        return jsonify({'error': 'Email required'}), 400
+    ok, err = users.set_comp_access(email, granted=True)
+    if not ok:
+        return jsonify({'error': err}), 404
+    return jsonify({'success': True, 'email': email.lower(), 'is_subscribed': True})
+
+
+@app.route('/api/admin/revoke-access', methods=['POST'])
+@require_admin
+def admin_revoke_access():
+    data = request.get_json(force=True)
+    email = (data.get('email') or '').strip()
+    if not email:
+        return jsonify({'error': 'Email required'}), 400
+    ok, err = users.set_comp_access(email, granted=False)
+    if not ok:
+        return jsonify({'error': err}), 404
+    return jsonify({'success': True, 'email': email.lower(), 'is_subscribed': False})
+
+
+@app.route('/api/admin/signal-history')
+@require_admin
+def admin_signal_history():
+    symbol_filter = request.args.get('symbol')
+
+    # Refresh outcomes for every symbol that has pending entries before
+    # returning the list, so the win/loss numbers are current.
+    pending_symbols = {e['symbol'] for e in signal_history.get_history(limit=10000) if e['status'] == 'PENDING'}
+    for sym in pending_symbols:
+        try:
+            candles = price_feed.fetch_candles(sym, interval='5m', range_='5d')
+            signal_history.resolve_pending(sym, candles)
+        except Exception:
+            continue  # if a symbol's price fetch fails, leave those entries pending for next refresh
+
+    return jsonify({
+        'history': signal_history.get_history(symbol=symbol_filter, limit=200),
+        'stats': signal_history.compute_stats(symbol=symbol_filter),
+    })
 
 
 if __name__ == '__main__':
