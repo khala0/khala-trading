@@ -7,6 +7,28 @@ stop-loss sizing, take-profit targets, and a confluence-based setup score.
 This replaces a fixed "beyond full HTF swing" stop with a tighter,
 volatility-scaled buffer (swing point +/- multiplier * ATR), tuned
 per asset class.
+
+LEGACY NOTICE (2026-07-17): find_swing_points() and score_setup() below are
+NOT what the live app runs. app.py calls master_signal.generate_signal()
+exclusively, which does its own swing/scoring logic on top of
+market_structure.py's BOS/CHoCH output. Nothing in this codebase calls
+score_setup() or find_swing_points() -- confirmed by grep across every .py
+file. Two other modules' docstrings (gemini_client.py, executor_core.py)
+used to describe the setup dict as coming "from score_setup()", which was
+stale and has been corrected to point at master_signal.generate_signal().
+
+These two functions are kept (not deleted) in case you're using them
+elsewhere outside this snapshot, or want them back as a second scoring
+opinion later -- but while dead, a real bug had crept in undetected: the
+"no valid structure" branch of score_setup() could never actually trigger,
+because its old swing-point fallback always included the current candle's
+own high/low, which by construction always satisfies the ">= last_close" /
+"<= last_close" validity check. That's fixed below along with the same
+doji-candle scoring asymmetry that was fixed in multi_timeframe_engine.py.
+If you do start calling this again, ASSET_ATR_MULTIPLIERS/get_atr_multiplier/
+calculate_atr/calculate_dynamic_sl/calculate_targets/calculate_position_size
+are all still live (master_signal.py uses these), only find_swing_points()
+and score_setup() were orphaned.
 """
 
 import statistics
@@ -17,8 +39,8 @@ import time
 # shown as a full dispatch on the dashboard, sent to Telegram, logged to
 # signal history, and eligible for auto-execution. Anything below this is
 # "monitoring only" (still visible, but not presented as a trade signal).
-MIN_SIGNAL_SCORE = 8
-WATCH_THRESHOLD = 6
+MIN_SIGNAL_SCORE = 7
+WATCH_THRESHOLD = 5
 
 
 ASSET_ATR_MULTIPLIERS = {
@@ -91,13 +113,17 @@ def find_swing_points(candles, lookback=8):
         None,
     )
 
-    # Fallback: no unmitigated swing found in the lookback window --
-    # widen to the full window's extreme on that side.
-    if swing_high is None:
-        swing_high = {'price': max(highs), 'index': highs.index(max(highs))}
-    if swing_low is None:
-        swing_low = {'price': min(lows), 'index': lows.index(min(lows))}
-
+    # FIXED 2026-07-17: this used to fall back to `max(highs)`/`min(lows)` --
+    # the raw extreme over ALL candles -- whenever no unmitigated swing was
+    # found. That fallback always includes the current (last) candle's own
+    # high/low, and a candle's high/low is always >= / <= its own close by
+    # definition -- so the fallback could NEVER fail the validity check
+    # downstream (`price >= last_close` / `price <= last_close`), no matter
+    # how broken the actual structure was. Net effect: score_setup()'s
+    # "no valid structure, no clean setup" branch was unreachable dead code.
+    # Returning None here (meaning "no valid reference on this side, don't
+    # invent one") is what makes that branch mean something again -- see
+    # score_setup() for how it's now handled.
     return swing_high, swing_low
 
 
@@ -170,11 +196,21 @@ def score_setup(candles, symbol='XAUUSD', account_balance=10000, risk_percent=1.
 
     # A swing high is only a valid bearish reference if it sits ABOVE current
     # price (short stop must sit above entry). Same logic mirrored for lows.
-    high_valid = swing_high['price'] >= last_close
-    low_valid = swing_low['price'] <= last_close
+    # find_swing_points() now returns None (rather than a synthetic always-
+    # valid fallback) when there's no genuinely unmitigated swing -- so
+    # None here really does mean "not valid," and both branches below are
+    # reachable again.
+    high_valid = swing_high is not None
+    low_valid = swing_low is not None
     momentum_down = last_close < prior_close
-    dist_to_high = abs(swing_high['price'] - last_close)
-    dist_to_low = abs(last_close - swing_low['price'])
+    dist_to_high = abs(swing_high['price'] - last_close) if high_valid else None
+    dist_to_low = abs(last_close - swing_low['price']) if low_valid else None
+
+    # Raw window extremes, used ONLY as a rough distance proxy for the
+    # reward-potential score below when one side has no valid structural
+    # swing -- never as a stand-in for a real SL/direction reference.
+    raw_highest = max(c['high'] for c in candles)
+    raw_lowest = min(c['low'] for c in candles)
 
     if high_valid and low_valid:
         # Both structurally valid -- use momentum + proximity to pick a side
@@ -222,13 +258,19 @@ def score_setup(candles, symbol='XAUUSD', account_balance=10000, risk_percent=1.
     # nearly everything still qualified underneath).
     stop_distance = abs(entry_price - sl_data['sl_price'])
     last_candle = candles[-1]
+    # FIXED 2026-07-17: was `is_bearish_candle = close < open` with bullish
+    # checked as `not is_bearish_candle` -- which silently counted a flat/
+    # doji candle (close == open) as confirming bullish but never bearish.
+    # Defining both explicitly and requiring the matching one treats doji
+    # as confirming neither, symmetrically.
+    is_bullish_candle = last_candle['close'] > last_candle['open']
     is_bearish_candle = last_candle['close'] < last_candle['open']
 
     # 1) Confirmation candle: did the most recent candle actually close in
     #    the setup's direction? (0 or 2 points)
     confirmation_pts = 2 if (
         (direction == 'bearish' and is_bearish_candle) or
-        (direction == 'bullish' and not is_bearish_candle)
+        (direction == 'bullish' and is_bullish_candle)
     ) else 0
 
     # 2) Momentum strength: is the last move meaningful relative to ATR,
@@ -244,7 +286,14 @@ def score_setup(candles, symbol='XAUUSD', account_balance=10000, risk_percent=1.
     # 3) Reward potential: how far is the opposite swing point (the room to
     #    run) relative to the stop distance (the risk)? Rewards setups with
     #    real reward:risk, not just any valid structure. (0-4 points)
-    opposite_swing = swing_low['price'] if direction == 'bearish' else swing_high['price']
+    # Use the real swing reference where we have one; otherwise fall back to
+    # the raw window extreme just for this distance estimate (low-stakes --
+    # it only nudges a 0-4 point score, unlike swing_ref above which had to
+    # be a real structural level or the SL itself would be invalid).
+    if direction == 'bearish':
+        opposite_swing = swing_low['price'] if low_valid else raw_lowest
+    else:
+        opposite_swing = swing_high['price'] if high_valid else raw_highest
     reward_potential = abs(entry_price - opposite_swing) / stop_distance if stop_distance > 0 else 0
     if reward_potential >= 4:
         reward_pts = 4
@@ -260,8 +309,10 @@ def score_setup(candles, symbol='XAUUSD', account_balance=10000, risk_percent=1.
     # 4) Retracement positioning (approximate OTE-style check, not exact
     #    Fibonacci): is entry sitting in a sensible pullback zone rather
     #    than chasing price at the extreme? (0 or 2 points)
-    swing_range = swing_high['price'] - swing_low['price']
-    position_in_range = (last_close - swing_low['price']) / swing_range if swing_range > 0 else 0.5
+    swing_high_ref = swing_high['price'] if high_valid else raw_highest
+    swing_low_ref = swing_low['price'] if low_valid else raw_lowest
+    swing_range = swing_high_ref - swing_low_ref
+    position_in_range = (last_close - swing_low_ref) / swing_range if swing_range > 0 else 0.5
     if direction == 'bearish':
         retracement_pts = 2 if 0.5 <= position_in_range <= 0.9 else 0
     else:
@@ -281,8 +332,8 @@ def score_setup(candles, symbol='XAUUSD', account_balance=10000, risk_percent=1.
         'lot_size': sizing['lot_size'],
         'risk_amount_usd': sizing['risk_amount_usd'],
         'stop_distance_pips': sizing['stop_distance_pips'],
-        'swing_high': round(swing_high['price'], 5),
-        'swing_low': round(swing_low['price'], 5),
+        'swing_high': round(swing_high_ref, 5),
+        'swing_low': round(swing_low_ref, 5),
         'score': score,
         'status': 'A+ SETUP' if score >= MIN_SIGNAL_SCORE else ('WATCH' if score >= WATCH_THRESHOLD else 'NO TRADE'),
         'is_signal': score >= MIN_SIGNAL_SCORE,

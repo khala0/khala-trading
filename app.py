@@ -41,6 +41,9 @@ import ledger
 import users
 import stripe_client
 import signal_history
+import multi_timeframe_engine
+import news_filter
+import master_signal
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-change-me')
@@ -49,18 +52,37 @@ ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'change-me')
 
 SUPPORTED_SYMBOLS = list(signal_engine.ASSET_ATR_MULTIPLIERS.keys())
 
-# Rough pip sizing per symbol for P&L/lot math -- adjust to your broker's quoting
+# Rough pip sizing per symbol for P&L/lot math -- adjust to your broker's quoting.
+#
+# FIXED 2026-07-17: this table (and, before this table existed, ledger.py's
+# own hardcoded defaults) used a single 4-decimal-FX convention -- pip_size
+# 0.0001, $10/lot -- for EVERY symbol. That's right for EURUSD/GBPUSD/AUDUSD,
+# but for gold, JPY pairs, silver, crypto, or indices it made the Ledger
+# tab's P&L figures wrong by orders of magnitude (e.g. a $0.0001-per-"pip"
+# convention applied to gold, which moves in whole dollars, would have
+# registered a normal few-dollar move as tens of thousands of "pips").
+#
+# The values below assume standard lot sizes (100,000 units for FX, 100oz
+# for gold, 5000oz for silver, 1 BTC for crypto, $1/point for the indices) --
+# verify these against Exness's actual contract specification for your
+# account type, since exact contract sizes do vary by broker.
+#
+# USDJPY/GBPJPY pip value is a static approximation (~USDJPY near 110-115).
+# Unlike the direct-USD-quoted pairs above, JPY-quoted pairs' true pip value
+# moves with the live USDJPY rate -- a full fix would convert dynamically at
+# close time, which this simple ledger doesn't do. Fine for a rough dashboard
+# P&L, not precise enough to rely on for anything that matters financially.
 PIP_CONFIG = {
-    'XAUUSD': {'pip_size': 0.1, 'pip_value_per_lot': 1.0},
-    'XAGUSD': {'pip_size': 0.01, 'pip_value_per_lot': 5.0},
+    'XAUUSD': {'pip_size': 0.01, 'pip_value_per_lot': 1.0},     # 100oz/lot
+    'XAGUSD': {'pip_size': 0.001, 'pip_value_per_lot': 5.0},    # 5000oz/lot
     'EURUSD': {'pip_size': 0.0001, 'pip_value_per_lot': 10.0},
     'GBPUSD': {'pip_size': 0.0001, 'pip_value_per_lot': 10.0},
-    'GBPJPY': {'pip_size': 0.01, 'pip_value_per_lot': 9.0},
+    'GBPJPY': {'pip_size': 0.01, 'pip_value_per_lot': 9.0},     # approx, see note above
     'AUDUSD': {'pip_size': 0.0001, 'pip_value_per_lot': 10.0},
-    'USDJPY': {'pip_size': 0.01, 'pip_value_per_lot': 9.0},
+    'USDJPY': {'pip_size': 0.01, 'pip_value_per_lot': 9.0},     # approx, see note above
     'US30': {'pip_size': 1.0, 'pip_value_per_lot': 1.0},
     'NAS100': {'pip_size': 1.0, 'pip_value_per_lot': 1.0},
-    'BTCUSD': {'pip_size': 1.0, 'pip_value_per_lot': 1.0},
+    'BTCUSD': {'pip_size': 1.0, 'pip_value_per_lot': 1.0},      # 1 BTC/lot
 }
 
 
@@ -148,12 +170,29 @@ def signal(symbol):
     pip_cfg = PIP_CONFIG.get(symbol, {'pip_size': 0.0001, 'pip_value_per_lot': 10.0})
 
     try:
-        candles = price_feed.fetch_candles(symbol, interval='5m', range_='5d')
-        setup = signal_engine.score_setup(
-            candles, symbol=symbol,
+        mtf_data = price_feed.fetch_multi_timeframe(symbol)
+
+        # Resolve any pending signal for this symbol against fresh price data
+        # BEFORE deciding whether a new one is allowed to fire.
+        signal_history.resolve_pending(symbol, mtf_data['candles_5m'])
+
+        setup = master_signal.generate_signal(
+            symbol, mtf_data['candles_4h'], mtf_data['candles_1h'], mtf_data['candles_5m'],
             account_balance=account_balance, risk_percent=risk_percent,
             pip_value_per_lot=pip_cfg['pip_value_per_lot'], pip_size=pip_cfg['pip_size'],
         )
+
+        # One active signal per symbol at a time: if the previous signal on
+        # this symbol hasn't hit TP or SL yet, don't issue a new one even if
+        # this setup would otherwise qualify.
+        if setup.get('is_signal') and signal_history.has_pending_signal(symbol):
+            setup['is_signal'] = False
+            setup['status'] = 'MONITORING - AWAITING PREVIOUS SIGNAL RESULT'
+            setup['reason'] = (
+                f'A previous {symbol} signal is still open (has not hit TP or SL yet) -- '
+                f'waiting for it to resolve before issuing a new one'
+            )
+
         narrative = gemini_client.generate_narrative(setup)
         setup['narrative'] = narrative
 
@@ -368,6 +407,36 @@ def admin_revoke_access():
     if not ok:
         return jsonify({'error': err}), 404
     return jsonify({'success': True, 'email': email.lower(), 'is_subscribed': False})
+
+
+@app.route('/api/admin/news-check')
+@require_admin
+def admin_news_check():
+    """
+    Debug route to verify the ForexFactory scrape actually works once
+    deployed (it can only be tested against the real site from a live
+    server with internet access -- see news_filter.py's docstring for
+    what to check if this comes back empty on a day with known news).
+    """
+    symbol = request.args.get('symbol', 'XAUUSD').upper()
+    try:
+        events = news_filter.fetch_high_impact_events()
+        blocked, matching_event = news_filter.is_near_high_impact_news(symbol)
+        return jsonify({
+            'symbol': symbol,
+            'total_high_impact_events_found': len(events),
+            'events': [
+                {'datetime': e['datetime'].isoformat(), 'currency': e['currency'], 'event': e['event']}
+                for e in events
+            ],
+            'currently_blocked': blocked,
+            'blocking_event': (
+                {'datetime': matching_event['datetime'].isoformat(), 'currency': matching_event['currency'], 'event': matching_event['event']}
+                if matching_event else None
+            ),
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
 
 
 @app.route('/api/admin/signal-history')

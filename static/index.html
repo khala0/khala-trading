@@ -445,12 +445,17 @@ async function loadSignal(sym) {
       return;
     }
     if (!s.is_signal) {
+      const isAwaitingResolution = (s.status || '').includes('AWAITING PREVIOUS');
+      const headline = isAwaitingResolution ? 'PREVIOUS SIGNAL STILL OPEN' : 'MONITORING — NO A+ SETUP YET';
+      const explanation = isAwaitingResolution
+        ? (s.reason || 'Waiting for the previous signal on this symbol to hit its target or stop before issuing a new one.')
+        : "Only setups scoring 8/10 or higher are dispatched as an actionable signal. This one doesn't clear that bar yet — keep watching, or check back shortly.";
       content.innerHTML = `
         <div class="panel" style="grid-column: span 2; text-align:center; padding:30px;">
-          <div class="metric-label">MONITORING — NO A+ SETUP YET</div>
+          <div class="metric-label">${headline}</div>
           <div class="bias-value ${s.direction}" style="font-size:16px; margin:8px 0;">${s.direction.toUpperCase()} bias, current score ${s.score}/10</div>
           <p style="color:var(--text-dim); font-size:12px; max-width:420px; margin:10px auto;">
-            Only setups scoring 8/10 or higher are dispatched as an actionable signal. This one doesn't clear that bar yet — keep watching, or check back shortly.
+            ${explanation}
           </p>
         </div>
       `;
@@ -473,7 +478,9 @@ async function loadSignal(sym) {
           <tr><td>TP2</td><td style="color:var(--green)">${s.targets.tp2}</td></tr>
           <tr><td>TP3 (macro)</td><td style="color:var(--green)">${s.targets.tp3}</td></tr>
           <tr><td>Lot size</td><td>${s.lot_size}</td></tr>
-          <tr><td>Swing High / Low</td><td>${s.swing_high} / ${s.swing_low}</td></tr>
+          <tr><td>4H Trend</td><td>${s.trend_4h ? s.trend_4h.toUpperCase() : '--'}</td></tr>
+          <tr><td>1H Confirms 4H?</td><td>${s.htf_agreement ? 'Yes' : 'No (pullback)'}</td></tr>
+          <tr><td>5M Execution Trigger</td><td>${s.execution_ready ? 'Present' : 'Not yet'}</td></tr>
         </table>
       </div>
       <div class="panel" style="grid-column: span 2;">

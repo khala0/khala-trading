@@ -132,6 +132,16 @@ def resolve_pending(symbol, candles):
         return resolved_count
 
 
+def has_pending_signal(symbol):
+    """
+    True if this symbol currently has an unresolved (PENDING) signal --
+    used to enforce 'wait for TP or SL before issuing a new signal on the
+    same symbol' rather than stacking multiple concurrent signals.
+    """
+    data = _load()
+    return any(e['symbol'] == symbol and e['status'] == 'PENDING' for e in data['entries'])
+
+
 def get_history(symbol=None, limit=200):
     data = _load()
     entries = data['entries']
@@ -139,6 +149,24 @@ def get_history(symbol=None, limit=200):
         entries = [e for e in entries if e['symbol'] == symbol]
     entries = sorted(entries, key=lambda e: e['generated_at'], reverse=True)
     return entries[:limit]
+
+
+def count_signals_today(symbol):
+    """
+    Counts how many signals were logged for this symbol so far today
+    (server-local calendar day, based on generated_at timestamps).
+    Used to enforce the max-5-per-day-per-symbol cap.
+    """
+    today_str = time.strftime('%Y-%m-%d')
+    data = _load()
+    count = 0
+    for e in data['entries']:
+        if e['symbol'] != symbol:
+            continue
+        entry_day = time.strftime('%Y-%m-%d', time.localtime(e['generated_at']))
+        if entry_day == today_str:
+            count += 1
+    return count
 
 
 def compute_stats(symbol=None):

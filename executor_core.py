@@ -20,7 +20,18 @@ import os
 import time
 import json
 
-KILL_SWITCH_PATH = os.environ.get('KILL_SWITCH_PATH', 'KILL_SWITCH')
+# FIXED 2026-07-17: this used to default to the bare relative name
+# 'KILL_SWITCH', checked via a plain os.path.exists() -- which resolves
+# against the *process's current working directory*, not this script's
+# location. That's fine when you launch it by hand from this folder, but a
+# 24/7 VPS setup (Task Scheduler, a startup script, a different shell) can
+# easily launch it from elsewhere, silently making the kill switch file you
+# drop in this folder invisible to the running process. Defaulting to a path
+# next to this file makes it independent of how/where the process gets
+# launched. Still fully overridable via the KILL_SWITCH_PATH env var if you
+# want it somewhere else (e.g. a shared location for multiple bots).
+_DEFAULT_KILL_SWITCH_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'KILL_SWITCH')
+KILL_SWITCH_PATH = os.environ.get('KILL_SWITCH_PATH', _DEFAULT_KILL_SWITCH_PATH)
 
 
 class ExecutionConfig:
@@ -85,9 +96,11 @@ class DailyState:
 
 
 def is_kill_switch_active():
-    """Kill switch: if a file named KILL_SWITCH exists in the working dir,
-    all auto-execution stops immediately. Create it with `touch KILL_SWITCH`,
-    remove it to resume. Dead simple, can't be bypassed by a code bug."""
+    """Kill switch: if a file named KILL_SWITCH exists next to this script
+    (or at KILL_SWITCH_PATH, if you've set that env var), all auto-execution
+    stops immediately. Create it with `touch KILL_SWITCH` in this file's
+    directory, remove it to resume. Dead simple, can't be bypassed by a code
+    bug -- and no longer dependent on the process's working directory."""
     return os.path.exists(KILL_SWITCH_PATH)
 
 
@@ -95,7 +108,10 @@ def should_execute(setup, config: ExecutionConfig, daily_state: DailyState, open
     """
     Decide whether to execute a new setup.
 
-    setup:          dict from signal_engine.score_setup()
+    setup:          dict from master_signal.generate_signal() (the function
+                    app.py/mt5_executor.py actually use -- NOT
+                    signal_engine.score_setup(), which is unused; see the
+                    LEGACY notice at the top of signal_engine.py)
     config:         ExecutionConfig instance
     daily_state:    DailyState instance (tracks today's trades/pnl)
     open_positions: list of currently open position dicts, each with

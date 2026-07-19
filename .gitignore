@@ -2,3 +2,11 @@
 __pycache__/
 *.pyc
 .DS_Store
+
+# Runtime state written by mt5_executor.py -- local to each deployment,
+# shouldn't be committed. (daily_state.json already existed; the other
+# three are new as of the 2026-07-17 fixes.)
+daily_state.json
+managed_positions.json
+executor.log
+KILL_SWITCH

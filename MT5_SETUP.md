@@ -69,8 +69,14 @@ program:
 ```
 type nul > KILL_SWITCH
 ```
-Delete that file to resume. This check happens before anything else, every
-single loop -- it can't be bypassed by a logic bug elsewhere in the script.
+**Create this file in the same folder as `mt5_executor.py` / `executor_core.py`**
+-- it's checked by an absolute path resolved from the script's own location
+(fixed 2026-07-17; it used to resolve relative to whatever directory the
+process happened to be launched from, which could silently miss the file
+if you're running this via Task Scheduler or a startup script on a VPS, as
+described in step 8 below). Delete the file to resume. This check happens
+before anything else, every single loop -- it can't be bypassed by a logic
+bug elsewhere in the script.
 
 ## 8. Keeping it running 24/7
 
@@ -79,6 +85,18 @@ If you want this running around the clock without your PC staying on:
 - Install MT5 + Python + this script on the VPS the same way
 - Leave both running continuously
 
+As of the 2026-07-17 fixes, the script also:
+- Logs everything to `executor.log` next to the script (in addition to the
+  console), so you have a record even if you're not watching it live
+- Keeps running through a transient error (e.g. a momentary MT5/connection
+  hiccup) instead of crashing the whole process -- it logs the error and
+  retries on the next poll
+- Sends you a Telegram message on startup, on manual shutdown, if it hits
+  an error it's recovering from, and if the daily loss limit trips
+
+None of that replaces actually checking on it periodically, especially in
+the first few weeks.
+
 ## What this does NOT do
 
 - It does not manage your emotions or override your own judgment -- you can
@@ -86,6 +104,8 @@ If you want this running around the clock without your PC staying on:
 - It does not guarantee profit. The signal engine's scoring is a starting
   point, not a proven strategy -- back-test and demo-test before trusting
   it with real money.
-- It does not currently handle partial take-profits, breakeven-stop moves,
-  or trailing stops after entry -- it places the order with SL/TP2 and then
-  leaves it to run. Let me know if you want that added.
+- It manages TP1 itself (partial close + move stop to breakeven once price
+  gets there, added 2026-07-17) and lets the remainder run to the
+  broker-side TP2 or the new breakeven stop, whichever comes first -- but
+  it does not do anything with TP3 (no trailing stop past TP2) or scale out
+  in more than these two steps. TP3 is still just a reference level for now.
