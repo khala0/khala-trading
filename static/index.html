@@ -7,14 +7,14 @@
 <script src="https://s3.tradingview.com/tv.js"></script>
 <style>
   :root {
-    --navy-bg: #0a0e1a;
-    --navy-panel: #10162a;
-    --navy-border: #1e2740;
-    --gold: #d4af37;
-    --gold-dim: #8a7328;
-    --green: #22c55e;
-    --red: #ef4444;
-    --text-dim: #7a8299;
+    --navy-bg: #090b10;
+    --navy-panel: #12151c;
+    --navy-border: #232733;
+    --gold: #00d9c0;
+    --gold-dim: #0a8a79;
+    --green: #2ed573;
+    --red: #ff4757;
+    --text-dim: #7a8699;
   }
   * { box-sizing: border-box; }
   body {
@@ -42,14 +42,26 @@
     padding: 8px 14px; cursor: pointer; font-family: inherit; font-size: 13px;
     border-radius: 4px;
   }
-  nav button.active { background: var(--gold); color: #0a0e1a; font-weight: 600; }
+  nav button.active { background: var(--gold); color: #090b10; font-weight: 600; }
   nav button:hover:not(.active) { background: var(--navy-border); color: #e8eaf0; }
   .status-badge {
     display: flex; align-items: center; gap: 6px; font-size: 11px;
     background: rgba(34,197,94,0.1); border: 1px solid var(--green);
     color: var(--green); padding: 4px 10px; border-radius: 12px;
   }
-  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+  .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+    box-shadow: 0 0 0 0 rgba(46,213,115,0.6);
+    animation: pulse-glow 2s ease-out infinite;
+  }
+  @keyframes pulse-glow {
+    0% { box-shadow: 0 0 0 0 rgba(46,213,115,0.55); }
+    70% { box-shadow: 0 0 0 6px rgba(46,213,115,0); }
+    100% { box-shadow: 0 0 0 0 rgba(46,213,115,0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dot { animation: none; }
+  }
 
   main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
   .panel {
@@ -93,7 +105,7 @@
   .bias-value.bearish { color: var(--red); }
   .bias-value.bullish { color: var(--green); }
 
-  .narrative { font-size: 12px; line-height: 1.7; color: #c8cce0; }
+  .narrative { font-size: 12px; line-height: 1.7; color: #b4bcd0; }
 
   .login-wrap { display: flex; justify-content: center; align-items: center; min-height: 60vh; }
   .login-card { background: var(--navy-panel); border: 1px solid var(--navy-border); border-radius: 10px; padding: 32px; width: 340px; text-align: center; }
@@ -102,7 +114,7 @@
     border: 1px solid var(--navy-border); border-radius: 6px; color: #e8eaf0; font-family: inherit;
   }
   .login-card button {
-    width: 100%; padding: 10px; margin-top: 10px; background: var(--gold); color: #0a0e1a;
+    width: 100%; padding: 10px; margin-top: 10px; background: var(--gold); color: #090b10;
     border: none; border-radius: 6px; font-weight: 700; cursor: pointer; font-family: inherit;
   }
   .error-text { color: var(--red); font-size: 12px; margin-top: 8px; }
@@ -150,7 +162,7 @@
   <section id="view-chart" class="grid grid-sidebar">
     <div class="panel">
       <div class="panel-title">SELECT ACTIVE ASSET STREAM</div>
-      <div class="symbol-list" id="symbol-list"></div>
+      <div class="symbol-list" id="symbol-list-chart" data-tab="chart"></div>
     </div>
     <div class="panel">
       <div class="panel-title" id="chart-symbol-title">GOLD SPOT / USD</div>
@@ -160,21 +172,27 @@
   </section>
 
   <!-- SIGNAL VIEW -->
-  <section id="view-signal" class="grid" style="display:none;">
-    <div id="signal-paywall" class="panel hidden" style="text-align:center; padding:40px;">
-      <div class="panel-title" style="justify-content:center;">SUBSCRIPTION REQUIRED</div>
-      <p style="color:var(--text-dim); font-size:13px; max-width:420px; margin:12px auto;">
-        AI Sniper Telemetry (live signals, SL/TP, and AI reasoning) is available to subscribers.
-        The live chart stays free to explore anytime.
-      </p>
-      <button onclick="handlePaywallCta()" id="signal-paywall-btn" style="background:var(--gold); color:#0a0e1a; border:none; padding:10px 20px; border-radius:6px; font-weight:700; cursor:pointer; font-family:inherit;">
-        Subscribe — $29/month
-      </button>
+  <section id="view-signal" class="grid grid-sidebar" style="display:none;">
+    <div class="panel">
+      <div class="panel-title">SELECT ACTIVE ASSET STREAM</div>
+      <div class="symbol-list" id="symbol-list-signal" data-tab="signal"></div>
     </div>
-    <div class="panel" id="signal-title-panel">
-      <div class="panel-title" id="signal-title">AI SNIPER TELEMETRY</div>
-      <div class="grid grid-2" id="signal-content">
-        <div>Loading signal...</div>
+    <div>
+      <div id="signal-paywall" class="panel hidden" style="text-align:center; padding:40px;">
+        <div class="panel-title" style="justify-content:center;">SUBSCRIPTION REQUIRED</div>
+        <p style="color:var(--text-dim); font-size:13px; max-width:420px; margin:12px auto;">
+          AI Sniper Telemetry (live signals, SL/TP, and AI reasoning) is available to subscribers.
+          The live chart stays free to explore anytime.
+        </p>
+        <button onclick="handlePaywallCta()" id="signal-paywall-btn" style="background:var(--gold); color:#090b10; border:none; padding:10px 20px; border-radius:6px; font-weight:700; cursor:pointer; font-family:inherit;">
+          Subscribe — $29/month
+        </button>
+      </div>
+      <div class="panel" id="signal-title-panel">
+        <div class="panel-title" id="signal-title">AI SNIPER TELEMETRY</div>
+        <div class="grid grid-2" id="signal-content">
+          <div>Loading signal...</div>
+        </div>
       </div>
     </div>
   </section>
@@ -186,7 +204,7 @@
       <p style="color:var(--text-dim); font-size:13px; max-width:420px; margin:12px auto;">
         The Ledger &amp; Dashboard (positions and P&amp;L tracking) is available to subscribers.
       </p>
-      <button onclick="handlePaywallCta()" style="background:var(--gold); color:#0a0e1a; border:none; padding:10px 20px; border-radius:6px; font-weight:700; cursor:pointer; font-family:inherit;">
+      <button onclick="handlePaywallCta()" style="background:var(--gold); color:#090b10; border:none; padding:10px 20px; border-radius:6px; font-weight:700; cursor:pointer; font-family:inherit;">
         Subscribe — $29/month
       </button>
     </div>
@@ -233,7 +251,7 @@
           They must already have an account (they sign up normally first, at no charge).
         </p>
         <input id="grant-email" type="email" placeholder="user@example.com" style="width:280px; padding:8px; background:var(--navy-bg); border:1px solid var(--navy-border); border-radius:6px; color:#e8eaf0; font-family:inherit;">
-        <button onclick="grantAccess()" style="background:var(--gold); color:#0a0e1a; border:none; padding:8px 14px; border-radius:6px; font-weight:700; cursor:pointer; font-family:inherit; margin-left:8px;">Grant Free Access</button>
+        <button onclick="grantAccess()" style="background:var(--gold); color:#090b10; border:none; padding:8px 14px; border-radius:6px; font-weight:700; cursor:pointer; font-family:inherit; margin-left:8px;">Grant Free Access</button>
         <div id="grant-result" style="font-size:12px; margin-top:8px;"></div>
       </div>
       <div class="panel">
@@ -373,14 +391,16 @@ document.getElementById('nav').addEventListener('click', (e) => {
 
 // ---- Symbol list + chart ----
 function renderSymbolList() {
-  const container = document.getElementById('symbol-list');
-  container.innerHTML = '';
-  SYMBOLS.forEach(sym => {
-    const item = document.createElement('div');
-    item.className = 'symbol-item' + (sym === activeSymbol ? ' active' : '');
-    item.innerHTML = `<div><div class="symbol-name">${sym}</div><div class="symbol-sub">Live</div></div><div class="symbol-price" id="price-${sym}">--</div>`;
-    item.onclick = () => selectSymbol(sym);
-    container.appendChild(item);
+  const containers = document.querySelectorAll('.symbol-list');
+  containers.forEach(container => {
+    container.innerHTML = '';
+    SYMBOLS.forEach(sym => {
+      const item = document.createElement('div');
+      item.className = 'symbol-item' + (sym === activeSymbol ? ' active' : '');
+      item.innerHTML = `<div><div class="symbol-name">${sym}</div><div class="symbol-sub">Live</div></div><div class="symbol-price" id="price-${sym}-${container.dataset.tab}">--</div>`;
+      item.onclick = () => selectSymbol(sym);
+      container.appendChild(item);
+    });
   });
 }
 
@@ -403,7 +423,7 @@ function loadChart(sym) {
     theme: 'dark',
     style: '1',
     locale: 'en',
-    toolbar_bg: '#10162a',
+    toolbar_bg: '#12151c',
     enable_publishing: false,
     hide_top_toolbar: false,
     container_id: 'tv_chart_container',
@@ -415,8 +435,9 @@ async function refreshPrices() {
     try {
       const res = await fetch(`/api/price/${sym}`);
       const data = await res.json();
-      const el = document.getElementById(`price-${sym}`);
-      if (el && data.latest_close) el.textContent = data.latest_close.toLocaleString(undefined, {maximumFractionDigits: 4});
+      document.querySelectorAll(`[id^="price-${sym}-"]`).forEach(el => {
+        if (data.latest_close) el.textContent = data.latest_close.toLocaleString(undefined, {maximumFractionDigits: 4});
+      });
     } catch (e) { /* ignore individual failures */ }
   }
 }
@@ -461,7 +482,17 @@ async function loadSignal(sym) {
       `;
       return;
     }
+    const isOpenSignal = s.status === 'SIGNAL OPEN - MONITORING';
+    const openBanner = isOpenSignal ? `
+      <div class="panel" style="grid-column: span 2; border-color: var(--gold); background: rgba(0,217,192,0.06);">
+        <div class="metric-label" style="color:var(--gold);">SIGNAL ALREADY OPEN — MONITORING FOR TP/SL</div>
+        <p style="color:var(--text-dim); font-size:12px; margin-top:6px;">
+          ${s.reason || 'This signal is still open. A new one will only be generated once this hits its target or stop.'}
+        </p>
+      </div>
+    ` : '';
     content.innerHTML = `
+      ${openBanner}
       <div class="panel">
         <div class="bias-box">
           <div class="metric-label">Current Bias</div>

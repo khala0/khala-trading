@@ -182,22 +182,34 @@ def signal(symbol):
             pip_value_per_lot=pip_cfg['pip_value_per_lot'], pip_size=pip_cfg['pip_size'],
         )
 
-        # One active signal per symbol at a time: if the previous signal on
-        # this symbol hasn't hit TP or SL yet, don't issue a new one even if
-        # this setup would otherwise qualify.
-        if setup.get('is_signal') and signal_history.has_pending_signal(symbol):
-            setup['is_signal'] = False
-            setup['status'] = 'MONITORING - AWAITING PREVIOUS SIGNAL RESULT'
+        # One active signal per symbol at a time: if a previous signal on
+        # this symbol hasn't hit TP or SL yet, don't dispatch/alert/log a new
+        # one -- but KEEP SHOWING the still-open signal's real details (its
+        # actual entry/SL/TP as originally logged), not a hidden/blank state.
+        open_signals = [e for e in signal_history.get_history(symbol=symbol) if e['status'] == 'PENDING']
+        should_dispatch = bool(setup.get('is_signal'))
+
+        if open_signals:
+            open_signal = open_signals[0]  # most recent pending entry
+            setup['is_signal'] = True
+            setup['status'] = 'SIGNAL OPEN - MONITORING'
+            setup['direction'] = open_signal['direction']
+            setup['entry_price'] = open_signal['entry_price']
+            setup['sl_price'] = open_signal['sl_price']
+            setup['targets'] = {'tp1': open_signal['tp1'], 'tp2': open_signal['tp2'], 'tp3': open_signal['tp3']}
+            setup['score'] = open_signal['score']
             setup['reason'] = (
-                f'A previous {symbol} signal is still open (has not hit TP or SL yet) -- '
-                f'waiting for it to resolve before issuing a new one'
+                'This signal is still open (has not hit TP or SL yet) -- showing its '
+                'original entry, stop-loss, and targets. A new signal will only be '
+                'generated once this one resolves.'
             )
+            should_dispatch = False  # never re-alert/re-log an already-open signal
 
         narrative = gemini_client.generate_narrative(setup)
         setup['narrative'] = narrative
 
-        # Auto-alert and log to history on high-confidence setups only
-        if setup.get('is_signal'):
+        # Auto-alert and log to history only for a genuinely NEW signal
+        if should_dispatch:
             telegram_client.send_alert(setup, narrative)
             signal_history.log_signal(setup)
 
