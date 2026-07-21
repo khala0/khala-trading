@@ -1,58 +1,69 @@
 """
-Simple JSON-file backed user store: signup, login verification, and
-subscription status tracking. Same lightweight pattern as ledger.py --
-swap for a real database if you outgrow this.
+Database-backed user store: signup, login verification, and subscription
+status tracking. Same function signatures as before -- only the storage
+underneath changed, from JSON files (wiped on every deploy/restart) to a
+real persistent database (see db.py).
 """
 
-import json
-import os
-import threading
 import time
 import secrets
 from werkzeug.security import generate_password_hash, check_password_hash
+import db
 
-USERS_PATH = os.environ.get('USERS_PATH', '/tmp/khala_users.json')
-_lock = threading.Lock()
-
-
-def _load():
-    if not os.path.exists(USERS_PATH):
-        return {'users': {}}
-    with open(USERS_PATH, 'r') as f:
-        return json.load(f)
-
-
-def _save(data):
-    with open(USERS_PATH, 'w') as f:
-        json.dump(data, f, indent=2)
+P = db.placeholder()
 
 
 def create_user(email, password):
     email = email.strip().lower()
-    with _lock:
-        data = _load()
-        if email in data['users']:
+    conn = db.get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(f"SELECT email FROM users WHERE email = {P}", (email,))
+        if cur.fetchone():
             return None, 'An account with this email already exists'
-        data['users'][email] = {
+
+        user = {
             'email': email,
             'password_hash': generate_password_hash(password),
             'created_at': time.time(),
-            'is_subscribed': False,
+            'is_subscribed': 0,
             'stripe_customer_id': None,
             'stripe_subscription_id': None,
-            'subscription_status': None,  # active, past_due, canceled, etc.
+            'subscription_status': None,
             'active_session_token': None,
             'last_login_at': None,
             'last_login_ip': None,
         }
-        _save(data)
-        return data['users'][email], None
+        cur.execute(
+            f"INSERT INTO users (email, password_hash, created_at, is_subscribed, "
+            f"stripe_customer_id, stripe_subscription_id, subscription_status, "
+            f"active_session_token, last_login_at, last_login_ip) "
+            f"VALUES ({P},{P},{P},{P},{P},{P},{P},{P},{P},{P})",
+            (user['email'], user['password_hash'], user['created_at'], user['is_subscribed'],
+             user['stripe_customer_id'], user['stripe_subscription_id'], user['subscription_status'],
+             user['active_session_token'], user['last_login_at'], user['last_login_ip']),
+        )
+        conn.commit()
+        user['is_subscribed'] = False
+        return user, None
+    finally:
+        conn.close()
 
 
 def get_user(email):
     email = email.strip().lower()
-    data = _load()
-    return data['users'].get(email)
+    conn = db.get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(f"SELECT * FROM users WHERE email = {P}", (email,))
+        row = cur.fetchone()
+        if row is None:
+            return None
+        user = db.row_to_dict(row)
+        user['is_subscribed'] = bool(user['is_subscribed'])
+        return user
+    finally:
+        conn.close()
 
 
 def verify_password(email, password):
@@ -64,11 +75,13 @@ def verify_password(email, password):
 
 def set_stripe_customer(email, customer_id):
     email = email.strip().lower()
-    with _lock:
-        data = _load()
-        if email in data['users']:
-            data['users'][email]['stripe_customer_id'] = customer_id
-            _save(data)
+    conn = db.get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(f"UPDATE users SET stripe_customer_id = {P} WHERE email = {P}", (customer_id, email))
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def update_subscription_status(email=None, customer_id=None, subscription_id=None, status=None):
@@ -76,23 +89,37 @@ def update_subscription_status(email=None, customer_id=None, subscription_id=Non
     Update a user's subscription status, looked up by email or stripe_customer_id
     (webhooks identify users by customer_id, not email).
     """
-    with _lock:
-        data = _load()
-        target = None
-        if email:
-            target = data['users'].get(email.strip().lower())
-        elif customer_id:
-            target = next((u for u in data['users'].values() if u.get('stripe_customer_id') == customer_id), None)
+    conn = db.get_connection()
+    try:
+        cur = conn.cursor()
+        is_subscribed_val = 1 if status == 'active' else 0
 
-        if target is None:
+        if email:
+            target_email = email.strip().lower()
+        elif customer_id:
+            cur.execute(f"SELECT email FROM users WHERE stripe_customer_id = {P}", (customer_id,))
+            row = cur.fetchone()
+            if row is None:
+                return False
+            target_email = db.row_to_dict(row)['email']
+        else:
             return False
 
-        target['subscription_status'] = status
-        target['is_subscribed'] = status == 'active'
         if subscription_id:
-            target['stripe_subscription_id'] = subscription_id
-        _save(data)
-        return True
+            cur.execute(
+                f"UPDATE users SET subscription_status = {P}, is_subscribed = {P}, "
+                f"stripe_subscription_id = {P} WHERE email = {P}",
+                (status, is_subscribed_val, subscription_id, target_email),
+            )
+        else:
+            cur.execute(
+                f"UPDATE users SET subscription_status = {P}, is_subscribed = {P} WHERE email = {P}",
+                (status, is_subscribed_val, target_email),
+            )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
 
 
 def is_subscribed(email):
@@ -110,15 +137,21 @@ def start_new_session(email, ip=None):
     """
     email = email.strip().lower()
     token = secrets.token_hex(32)
-    with _lock:
-        data = _load()
-        if email not in data['users']:
+    conn = db.get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(f"SELECT email FROM users WHERE email = {P}", (email,))
+        if cur.fetchone() is None:
             return None
-        data['users'][email]['active_session_token'] = token
-        data['users'][email]['last_login_at'] = time.time()
-        data['users'][email]['last_login_ip'] = ip
-        _save(data)
-    return token
+        cur.execute(
+            f"UPDATE users SET active_session_token = {P}, last_login_at = {P}, last_login_ip = {P} "
+            f"WHERE email = {P}",
+            (token, time.time(), ip, email),
+        )
+        conn.commit()
+        return token
+    finally:
+        conn.close()
 
 
 def is_session_valid(email, token):
@@ -140,27 +173,32 @@ def set_comp_access(email, granted=True):
     unless the admin explicitly revokes it.
     """
     email = email.strip().lower()
-    with _lock:
-        data = _load()
-        if email not in data['users']:
+    conn = db.get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(f"SELECT email FROM users WHERE email = {P}", (email,))
+        if cur.fetchone() is None:
             return False, 'No account with this email exists'
-        data['users'][email]['is_subscribed'] = granted
-        data['users'][email]['subscription_status'] = 'comp' if granted else 'comp_revoked'
-        _save(data)
+        status = 'comp' if granted else 'comp_revoked'
+        cur.execute(
+            f"UPDATE users SET is_subscribed = {P}, subscription_status = {P} WHERE email = {P}",
+            (1 if granted else 0, status, email),
+        )
+        conn.commit()
         return True, None
+    finally:
+        conn.close()
 
 
 def list_users():
     """Returns all users with password hashes and session tokens stripped out, for admin display."""
-    data = _load()
-    return [
-        {
-            'email': u['email'],
-            'is_subscribed': u.get('is_subscribed', False),
-            'subscription_status': u.get('subscription_status'),
-            'created_at': u.get('created_at'),
-            'last_login_at': u.get('last_login_at'),
-            'last_login_ip': u.get('last_login_ip'),
-        }
-        for u in data['users'].values()
-    ]
+    conn = db.get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT email, is_subscribed, subscription_status, created_at, last_login_at, last_login_ip FROM users")
+        rows = [db.row_to_dict(r) for r in cur.fetchall()]
+        for r in rows:
+            r['is_subscribed'] = bool(r['is_subscribed'])
+        return rows
+    finally:
+        conn.close()

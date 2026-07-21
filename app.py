@@ -37,6 +37,7 @@ import price_feed
 import signal_engine
 import gemini_client
 import telegram_client
+import db
 import ledger
 import users
 import stripe_client
@@ -44,6 +45,8 @@ import signal_history
 import multi_timeframe_engine
 import news_filter
 import master_signal
+
+db.init_schema()  # creates tables if they don't exist yet -- safe to call every startup
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-change-me')
