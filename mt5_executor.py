@@ -98,6 +98,14 @@ except ImportError:
 
 API_BASE_URL = os.environ.get('KHALA_API_URL', 'https://khala-trading.onrender.com')
 
+# /api/signal/<symbol> requires being logged in as admin (or a subscribed
+# user) -- without this, every request gets 401 Unauthorized. Set this via
+# environment variable so your admin password isn't sitting in plain text
+# in this file:
+#   Windows (inside Wine):  set KHALA_ADMIN_PASSWORD=your-password
+#   Or just hardcode it below for local/demo use.
+ADMIN_PASSWORD = os.environ.get('KHALA_ADMIN_PASSWORD', '')
+
 # Map your internal symbol names to the exact symbol name Exness uses in
 # YOUR MT5 terminal. Exness often appends suffixes (e.g. "XAUUSDm" or
 # "EURUSDpro") depending on account type -- check your MT5 "Market Watch"
@@ -203,12 +211,46 @@ def get_open_positions():
     ]
 
 
+# Persistent session so the login cookie is reused across every request
+# instead of hitting /api/signal with no credentials at all (which is why
+# you were seeing 401 Unauthorized on every single call).
+_session = requests.Session()
+
+
+def login_as_admin():
+    """Logs into the Khala Trading admin session once; the cookie is then
+    reused by every subsequent request via the shared _session object."""
+    if not ADMIN_PASSWORD:
+        log.error("KHALA_ADMIN_PASSWORD is not set -- cannot authenticate with the signal API.")
+        log.error("Set it via environment variable or edit ADMIN_PASSWORD in the CONFIG section.")
+        sys.exit(1)
+
+    resp = _session.post(f"{API_BASE_URL}/api/admin/login", json={'password': ADMIN_PASSWORD}, timeout=15)
+    data = resp.json() if resp.headers.get('content-type', '').startswith('application/json') else {}
+    if resp.status_code != 200 or not data.get('success'):
+        log.error(f"Admin login failed (status {resp.status_code}): {data.get('error', resp.text[:200])}")
+        log.error("Check that KHALA_ADMIN_PASSWORD matches your ADMIN_PASSWORD on Render exactly.")
+        sys.exit(1)
+    log.info("Authenticated with the Khala Trading signal API as admin.")
+
+
 def fetch_signal(symbol, balance):
-    resp = requests.get(
+    resp = _session.get(
         f"{API_BASE_URL}/api/signal/{symbol}",
         params={'balance': balance, 'risk': ACCOUNT_RISK_PERCENT},
         timeout=15,
     )
+    if resp.status_code == 401:
+        # Session cookie expired/invalidated (e.g. someone else logged into
+        # admin from a browser) -- re-authenticate once and retry, rather
+        # than failing every single poll from here on.
+        log.warning("Got 401 from signal API -- session may have expired, re-authenticating...")
+        login_as_admin()
+        resp = _session.get(
+            f"{API_BASE_URL}/api/signal/{symbol}",
+            params={'balance': balance, 'risk': ACCOUNT_RISK_PERCENT},
+            timeout=15,
+        )
     resp.raise_for_status()
     return resp.json()
 
@@ -476,6 +518,9 @@ def main():
     log.info(f"Connected to MT5. Account: {acct.login}, Balance: {acct.balance} {acct.currency}")
     log.info(f"Polling {API_BASE_URL} every {POLL_INTERVAL_SECONDS}s for symbols: {list(SYMBOL_MAP.keys())}")
     log.info(f"Create a file named KILL_SWITCH in {_HERE} anytime to halt trading instantly.")
+
+    login_as_admin()
+
     alert(f"Khala Trading executor started. Account {acct.login}, balance {acct.balance} {acct.currency}.")
 
     daily_state = DailyState(persist_path=os.path.join(_HERE, 'daily_state.json'))
