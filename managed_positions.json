@@ -1,0 +1,15 @@
+{
+  "3003140794": {
+    "symbol": "XAUUSD",
+    "mt5_symbol": "XAUUSDm",
+    "direction": "bullish",
+    "entry_fill_price": 4064.283,
+    "sl_original": 3943.472,
+    "tp1": 4185.094,
+    "tp2": 4305.904,
+    "tp3": 4426.715,
+    "original_volume": 0.01,
+    "partial1_done": false,
+    "opened_at": 1784913381.0190177
+  }
+}

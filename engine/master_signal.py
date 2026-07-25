@@ -64,20 +64,28 @@ def _no_trade_result(symbol, status, reason, direction=None):
 
 def generate_signal(symbol, candles_4h, candles_1h, candles_5m,
                      account_balance=10000, risk_percent=1.0,
-                     pip_value_per_lot=10.0, pip_size=0.0001):
+                     pip_value_per_lot=10.0, pip_size=0.0001,
+                     skip_news_filter=False):
     """
     Returns a dict describing the current signal state for `symbol`. Always
     returns a dict (never raises) -- callers can check 'direction' (None
     means no trade) and 'status' for what's actually going on.
+
+    skip_news_filter: news_filter.py only knows TODAY's news calendar, not
+    historical dates -- checking it while backtesting against, say, candles
+    from 2023 would incorrectly apply 2026's news schedule. Backtesting
+    code should pass skip_news_filter=True; live trading should never set
+    this (default False keeps the live safety check active).
     """
     # --- Step 1: news filter -- checked first, since a blackout should
     # override everything else regardless of how good the setup looks ---
-    blocked, event = news_filter.is_near_high_impact_news(symbol)
-    if blocked:
-        return _no_trade_result(
-            symbol, 'NEWS BLACKOUT',
-            f"High-impact {event['currency']} news ({event['event']}) near this time -- trading paused as a precaution",
-        )
+    if not skip_news_filter:
+        blocked, event = news_filter.is_near_high_impact_news(symbol)
+        if blocked:
+            return _no_trade_result(
+                symbol, 'NEWS BLACKOUT',
+                f"High-impact {event['currency']} news ({event['event']}) near this time -- trading paused as a precaution",
+            )
 
     # --- Step 2: multi-timeframe bias (4H required, 1H refinement, 5M trigger) ---
     bias = multi_timeframe_engine.determine_bias(candles_4h, candles_1h, candles_5m)
