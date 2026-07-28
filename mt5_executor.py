@@ -255,6 +255,60 @@ def fetch_signal(symbol, balance):
     return resp.json()
 
 
+def sync_ledger_open(symbol, direction, entry_price, sl_price, tp1, tp2, tp3, lot_size):
+    """
+    Records this real MT5 trade in the website's Ledger tab too. Without
+    this, orders placed here were completely invisible on the site --
+    MT5 and the website ledger were two disconnected systems that never
+    talked to each other. Returns the website's own ledger ID for this
+    position (needed later to close it out on the site too), or None if
+    the sync call failed (network hiccup, site down, etc. -- doesn't
+    block the real trade, just means the site won't show it until the
+    next successful sync).
+    """
+    try:
+        resp = _session.post(f"{API_BASE_URL}/api/ledger/open", json={
+            'symbol': symbol, 'direction': direction, 'entry_price': entry_price,
+            'sl_price': sl_price, 'tp1': tp1, 'tp2': tp2, 'tp3': tp3, 'lot_size': lot_size,
+        }, timeout=15)
+        if resp.status_code == 200:
+            return resp.json().get('id')
+        log.warning(f"  Failed to sync opened position to website ledger: "
+                    f"{resp.status_code} {resp.text[:200]}")
+    except requests.RequestException as e:
+        log.warning(f"  Failed to sync opened position to website ledger: {e}")
+    return None
+
+
+def sync_ledger_close(web_ledger_id, close_price, symbol):
+    """Marks the corresponding website ledger entry as closed, with the
+    real close price, once MT5 confirms the position is actually gone."""
+    if not web_ledger_id:
+        log.warning(f"  [{symbol}] No website ledger ID on record for this position -- "
+                    f"it either never synced on open, or was opened before this feature existed. "
+                    f"Won't appear as closed on the site.")
+        return
+    try:
+        resp = _session.post(f"{API_BASE_URL}/api/ledger/close", json={
+            'position_id': web_ledger_id, 'close_price': close_price, 'symbol': symbol,
+        }, timeout=15)
+        if resp.status_code != 200:
+            log.warning(f"  Failed to sync closed position to website ledger: "
+                        f"{resp.status_code} {resp.text[:200]}")
+    except requests.RequestException as e:
+        log.warning(f"  Failed to sync closed position to website ledger: {e}")
+
+
+def _get_last_deal_price(ticket):
+    """The price of the most recent deal against this ticket -- represents
+    whatever actually closed the remaining position (SL, TP2, breakeven,
+    or a manual close), used as the real close price for the website ledger."""
+    deals = mt5.history_deals_get(position=ticket)
+    if not deals:
+        return None
+    return max(deals, key=lambda d: d.time).price
+
+
 def _send_market_order(mt5_symbol, order_type, volume, price, sl, tp, comment):
     """One order_send call, with a single retry against a fresh tick on
     requote / price-changed (common when the market's moving fast)."""
@@ -350,6 +404,10 @@ def place_order(setup):
     log.info(f"  ORDER PLACED: {mt5_symbol} {direction.upper()} {lot} lots @ {price}, "
              f"SL {sl}, TP1(managed) {tp1}, TP2(broker) {tp2}, ticket #{result.order}")
 
+    web_ledger_id = sync_ledger_open(symbol, direction, price, sl, tp1, tp2, tp3, lot)
+    if web_ledger_id:
+        log.info(f"  Synced to website ledger as {web_ledger_id}")
+
     # Persist enough to manage this position later: partial-close at TP1 +
     # breakeven move, and P&L recording once it fully closes.
     store = _load_managed_positions()
@@ -365,6 +423,7 @@ def place_order(setup):
         'original_volume': lot,
         'partial1_done': False,
         'opened_at': time.time(),
+        'web_ledger_id': web_ledger_id,
     }
     _save_managed_positions(store)
 
@@ -425,6 +484,9 @@ def manage_open_positions(daily_state):
                 daily_state.record_closed_pnl(pnl)
                 log.info(f"  [{record['symbol']}] Position #{ticket} closed, realized P&L ${pnl:.2f} "
                          f"-- today's total: ${daily_state.realized_pnl:.2f}")
+                close_price = _get_last_deal_price(ticket)
+                if close_price is not None:
+                    sync_ledger_close(record.get('web_ledger_id'), close_price, record['symbol'])
                 if daily_state.realized_pnl <= -abs(EXECUTION_CONFIG.max_daily_loss_usd):
                     alert(f"Daily loss limit hit (${daily_state.realized_pnl:.2f}). "
                           f"Auto-execution is halted for the rest of today.")
