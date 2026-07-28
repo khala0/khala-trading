@@ -241,8 +241,30 @@
     <div id="admin-dashboard" class="hidden">
       <div class="panel">
         <div class="panel-title">ADMIN CONTROLS</div>
-        <p style="font-size:12px;color:var(--text-dim);">Authenticated. You can open/close positions via the API directly, or extend this panel with manual trade entry controls.</p>
+        <p style="font-size:12px;color:var(--text-dim);">Authenticated.</p>
         <button onclick="adminLogout()" style="background:var(--red);color:white;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-family:inherit;">Log out</button>
+      </div>
+      <div class="panel">
+        <div class="panel-title">MANUALLY ADD POSITION</div>
+        <p style="font-size:12px;color:var(--text-dim); margin-bottom:10px;">
+          Add an existing or manually-placed trade to the Ledger tab (e.g. a trade opened before the
+          MT5 auto-sync existed, or one you placed by hand outside the bot).
+        </p>
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; max-width:700px;">
+          <input id="mp-symbol" placeholder="Symbol (XAUUSD)" style="padding:8px; background:var(--navy-bg); border:1px solid var(--navy-border); border-radius:6px; color:#e8eaf0; font-family:inherit;">
+          <select id="mp-direction" style="padding:8px; background:var(--navy-bg); border:1px solid var(--navy-border); border-radius:6px; color:#e8eaf0; font-family:inherit;">
+            <option value="bullish">BUY (bullish)</option>
+            <option value="bearish">SELL (bearish)</option>
+          </select>
+          <input id="mp-entry" type="number" step="any" placeholder="Entry price" style="padding:8px; background:var(--navy-bg); border:1px solid var(--navy-border); border-radius:6px; color:#e8eaf0; font-family:inherit;">
+          <input id="mp-sl" type="number" step="any" placeholder="Stop loss" style="padding:8px; background:var(--navy-bg); border:1px solid var(--navy-border); border-radius:6px; color:#e8eaf0; font-family:inherit;">
+          <input id="mp-tp1" type="number" step="any" placeholder="TP1" style="padding:8px; background:var(--navy-bg); border:1px solid var(--navy-border); border-radius:6px; color:#e8eaf0; font-family:inherit;">
+          <input id="mp-tp2" type="number" step="any" placeholder="TP2" style="padding:8px; background:var(--navy-bg); border:1px solid var(--navy-border); border-radius:6px; color:#e8eaf0; font-family:inherit;">
+          <input id="mp-tp3" type="number" step="any" placeholder="TP3" style="padding:8px; background:var(--navy-bg); border:1px solid var(--navy-border); border-radius:6px; color:#e8eaf0; font-family:inherit;">
+          <input id="mp-lot" type="number" step="any" placeholder="Lot size" style="padding:8px; background:var(--navy-bg); border:1px solid var(--navy-border); border-radius:6px; color:#e8eaf0; font-family:inherit;">
+        </div>
+        <button onclick="addManualPosition()" style="background:var(--gold); color:#090b10; border:none; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer; font-family:inherit; margin-top:10px;">Add to Ledger</button>
+        <div id="mp-result" style="font-size:12px; margin-top:8px;"></div>
       </div>
       <div class="panel">
         <div class="panel-title">GRANT FREE ACCESS</div>
@@ -601,6 +623,39 @@ async function adminLogout() {
   await fetch('/api/admin/logout', {method: 'POST'});
   document.getElementById('admin-dashboard').classList.add('hidden');
   document.getElementById('admin-login-wrap').classList.remove('hidden');
+}
+
+async function addManualPosition() {
+  const resultEl = document.getElementById('mp-result');
+  const symbol = document.getElementById('mp-symbol').value.trim().toUpperCase();
+  const direction = document.getElementById('mp-direction').value;
+  const entry_price = parseFloat(document.getElementById('mp-entry').value);
+  const sl_price = parseFloat(document.getElementById('mp-sl').value);
+  const tp1 = parseFloat(document.getElementById('mp-tp1').value);
+  const tp2 = parseFloat(document.getElementById('mp-tp2').value);
+  const tp3 = parseFloat(document.getElementById('mp-tp3').value);
+  const lot_size = parseFloat(document.getElementById('mp-lot').value);
+
+  if (!symbol || [entry_price, sl_price, tp1, tp2, tp3, lot_size].some(v => isNaN(v))) {
+    resultEl.innerHTML = '<span style="color:var(--red)">Fill in every field with valid numbers first.</span>';
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/ledger/open', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({symbol, direction, entry_price, sl_price, tp1, tp2, tp3, lot_size}),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      resultEl.innerHTML = `<span style="color:var(--green)">Added ${symbol} to the ledger (id: ${data.id})</span>`;
+      ['mp-symbol','mp-entry','mp-sl','mp-tp1','mp-tp2','mp-tp3','mp-lot'].forEach(id => document.getElementById(id).value = '');
+    } else {
+      resultEl.innerHTML = `<span style="color:var(--red)">${data.error}</span>`;
+    }
+  } catch (e) {
+    resultEl.innerHTML = `<span style="color:var(--red)">Request failed: ${e}</span>`;
+  }
 }
 
 async function grantAccess() {

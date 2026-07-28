@@ -39,7 +39,7 @@ import time
 # shown as a full dispatch on the dashboard, sent to Telegram, logged to
 # signal history, and eligible for auto-execution. Anything below this is
 # "monitoring only" (still visible, but not presented as a trade signal).
-MIN_SIGNAL_SCORE = 7
+MIN_SIGNAL_SCORE = 7.5
 WATCH_THRESHOLD = 5
 
 
