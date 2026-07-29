@@ -1411,3 +1411,8 @@
 2026-07-25 00:15:47,840 [INFO] [GBPUSD] score=0.5 status=NO TRADE -> skip (Score 0.5 below minimum threshold 8)
 2026-07-25 00:15:48,772 [INFO] [USDJPY] score=7.5 status=SIGNAL OPEN - MONITORING -> skip (Score 7.5 below minimum threshold 8)
 2026-07-25 00:15:49,832 [INFO] [BTCUSD] score=7.5 status=SIGNAL OPEN - MONITORING -> skip (Score 7.5 below minimum threshold 8)
+2026-07-28 22:01:21,285 [INFO] Connected to MT5. Account: 436984922, Balance: 100.0 USD
+2026-07-28 22:01:21,292 [INFO] Polling https://khala-trading.onrender.com every 60s for symbols: ['XAUUSD', 'EURUSD', 'GBPUSD', 'USDJPY', 'BTCUSD']
+2026-07-28 22:01:21,292 [INFO] Create a file named KILL_SWITCH in Z:\home\khala\projects\khala-trading anytime to halt trading instantly.
+2026-07-28 22:01:21,293 [ERROR] KHALA_ADMIN_PASSWORD is not set -- cannot authenticate with the signal API.
+2026-07-28 22:01:21,295 [ERROR] Set it via environment variable or edit ADMIN_PASSWORD in the CONFIG section.

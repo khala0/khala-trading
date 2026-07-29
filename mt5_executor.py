@@ -122,7 +122,7 @@ POLL_INTERVAL_SECONDS = 60  # how often to check for a new setup, per symbol
 MAGIC_NUMBER = 20260709     # arbitrary ID to identify this bot's trades/partials in MT5 history
 
 EXECUTION_CONFIG = ExecutionConfig(
-    min_score=8,                 # only auto-execute A+ setups (8+/10)
+    min_score=7.5,               # matches signal_engine.MIN_SIGNAL_SCORE -- keep these in sync
     max_open_positions=3,        # across the whole account
     max_positions_per_symbol=1,  # no doubling up on the same pair
     max_daily_loss_usd=100.0,    # stop trading for the day past this loss
