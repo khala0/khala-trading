@@ -33,7 +33,13 @@ SQLITE_PATH = os.environ.get('SQLITE_PATH', '/tmp/khala_trading.db')
 def get_connection():
     """Returns a live DB connection. Caller is responsible for closing it."""
     if USE_POSTGRES:
-        return psycopg2.connect(DATABASE_URL, sslmode='require')
+        # RealDictCursor makes fetched rows behave like dicts (same as
+        # sqlite3.Row below) -- WITHOUT this, psycopg2 returns plain tuples,
+        # and dict(row) silently breaks the moment it hits a column value
+        # that isn't itself a 2-element sequence (this was a real bug,
+        # surfaced in production as "dictionary update sequence element #0
+        # has length 20; 2 is required").
+        return psycopg2.connect(DATABASE_URL, sslmode='require', cursor_factory=psycopg2.extras.RealDictCursor)
     conn = sqlite3.connect(SQLITE_PATH)
     conn.row_factory = sqlite3.Row
     return conn
