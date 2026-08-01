@@ -193,9 +193,25 @@ def _save_managed_positions(store):
 
 
 def get_account_balance():
+    """
+    Returns the account balance converted to real-USD-equivalent terms.
+
+    Cent accounts (Exness account currency shows as 'USC', sometimes 'EUC'/
+    'GBC' for other base currencies) report balance/equity 100x larger than
+    real money -- e.g. a balance of 500.0 USC is actually $5.00 real USD.
+    Every position-sizing calculation elsewhere in this system (and on the
+    website's signal API) assumes real USD. Without this conversion, lot
+    sizes computed for a Cent account would come out roughly 100x too
+    large relative to the real account value -- a real financial risk, not
+    just a display issue.
+    """
     info = mt5.account_info()
     if info is None:
         raise RuntimeError("Could not read MT5 account info -- is the terminal running and logged in?")
+
+    CENT_CURRENCIES = ('USC', 'EUC', 'GBC')
+    if info.currency in CENT_CURRENCIES:
+        return info.balance / 100.0
     return info.balance
 
 
