@@ -30,6 +30,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'engine'))
 
 import price_feed
 import backtest_engine
+import report_generator
 
 
 PIP_CONFIG = {
@@ -111,6 +112,10 @@ def main():
     with open(out_path, 'w') as f:
         json.dump({'symbol': symbol, 'stats': stats, 'trades': trades}, f, indent=2, default=str)
     print(f"Full trade-by-trade results saved to {out_path}")
+
+    html_path = f'backtest_{symbol}_{args.range}.html'
+    report_generator.generate_html_report(symbol, stats, trades, html_path)
+    print(f"Visual report saved to {html_path} -- open it in any browser")
 
 
 if __name__ == '__main__':

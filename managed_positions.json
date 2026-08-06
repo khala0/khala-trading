@@ -1,1 +1,16 @@
-{}
+{
+  "400921052": {
+    "symbol": "BTCUSD",
+    "mt5_symbol": "BTCUSDc",
+    "direction": "bearish",
+    "entry_fill_price": 63044.23,
+    "sl_original": 65679.13,
+    "tp1": 60409.33,
+    "tp2": 57774.44,
+    "tp3": 55139.54,
+    "original_volume": 0.01,
+    "partial1_done": false,
+    "opened_at": 1785597204.3839304,
+    "web_ledger_id": "BTCUSD-1785597203681"
+  }
+}
