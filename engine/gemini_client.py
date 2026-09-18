@@ -16,6 +16,105 @@ GEMINI_URL = (
 )
 
 
+def validate_signal(setup: dict) -> dict:
+    """
+    Asks Gemini to act as a second-opinion analyst and explicitly APPROVE
+    or REJECT the signal before it gets dispatched. This is genuine AI
+    analytical work -- not narration of a pre-made decision, but an
+    independent critique of the setup's validity.
+
+    Returns a dict:
+        approved:   True/False
+        confidence: 'high' | 'medium' | 'low'
+        reasoning:  short explanation of the decision
+        risks:      list of flagged concerns (empty if approved with high confidence)
+
+    Fails SAFE: if Gemini is unavailable or the key isn't set, returns
+    approved=True so the existing score-based logic still controls the gate
+    rather than blocking all signals silently. The signal display will show
+    whether AI validation ran or was skipped.
+    """
+    if not GEMINI_API_KEY:
+        return {
+            'approved': True, 'confidence': 'unknown',
+            'reasoning': 'Gemini validation skipped -- no API key configured',
+            'risks': [], 'validation_ran': False,
+        }
+
+    pd_info = setup.get('premium_discount') or {}
+    crt_info = setup.get('crt_sweep') or {}
+    fib_info = setup.get('fibonacci_zone') or {}
+
+    prompt = f"""You are a professional forex and gold trading analyst with deep expertise in Smart Money Concepts (SMC), ICT methodology, and multi-timeframe analysis.
+
+A trading signal has been generated with the following parameters. Your job is to act as a SECOND-OPINION RISK ANALYST and decide whether this signal should be executed or rejected.
+
+SIGNAL DETAILS:
+- Symbol: {setup.get('symbol')}
+- Direction: {setup.get('direction', '').upper()}
+- Entry price: {setup.get('entry_price')}
+- Stop-loss: {setup.get('sl_price')}
+- TP1: {setup.get('targets', {}).get('tp1') if setup.get('targets') else 'N/A'}
+- TP2: {setup.get('targets', {}).get('tp2') if setup.get('targets') else 'N/A'}
+- Confluence score: {setup.get('score')}/10
+
+STRUCTURE & CONFLUENCE:
+- 4H trend: {setup.get('trend_4h')}
+- 1H trend: {setup.get('trend_1h')}
+- 15M trend: {setup.get('trend_15m')}
+- 1H agrees with 4H: {setup.get('htf_agreement')}
+- 5M execution trigger: {setup.get('execution_ready')}
+- Premium/Discount zone: {pd_info.get('zone')} (favorable: {pd_info.get('favorable')})
+- CRT sweep: {crt_info.get('swept')} ({crt_info.get('direction')} direction)
+- Fibonacci retracement zone: {fib_info.get('in_entry_zone')} (ratio: {fib_info.get('retracement_ratio')})
+- Engine reasoning: {setup.get('reason')}
+
+Respond with ONLY a valid JSON object in this exact format (no markdown, no explanation outside the JSON):
+{{
+  "approved": true or false,
+  "confidence": "high" or "medium" or "low",
+  "reasoning": "2-3 sentences explaining your decision",
+  "risks": ["risk 1", "risk 2"]
+}}
+
+APPROVE if: multiple timeframes align, entry is in a logical zone, stop is structurally placed, and reward:risk justifies the trade.
+REJECT if: timeframes conflict, entry is chasing price, stop is illogically placed, or the setup lacks meaningful confluence beyond just a trend direction."""
+
+    body = json.dumps({
+        'contents': [{'parts': [{'text': prompt}]}],
+        'generationConfig': {'temperature': 0.2},  # low temperature = more consistent, less hallucination
+    }).encode('utf-8')
+
+    req = urllib.request.Request(
+        GEMINI_URL.format(key=GEMINI_API_KEY),
+        data=body,
+        headers={'Content-Type': 'application/json'},
+        method='POST',
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+        raw = data['candidates'][0]['content']['parts'][0]['text'].strip()
+        # Strip markdown fences if Gemini adds them despite instructions
+        raw = raw.replace('```json', '').replace('```', '').strip()
+        result = json.loads(raw)
+        return {
+            'approved': bool(result.get('approved', True)),
+            'confidence': result.get('confidence', 'medium'),
+            'reasoning': result.get('reasoning', ''),
+            'risks': result.get('risks', []),
+            'validation_ran': True,
+        }
+    except Exception as e:
+        # Fail safe -- Gemini unavailable doesn't block trading
+        return {
+            'approved': True, 'confidence': 'unknown',
+            'reasoning': f'Gemini validation failed: {str(e)[:100]}',
+            'risks': [], 'validation_ran': False,
+        }
+
+
 def generate_narrative(setup: dict) -> str:
     """
     Given a setup dict from master_signal.generate_signal() (the function
