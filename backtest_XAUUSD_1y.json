@@ -1,0 +1,117 @@
+{
+  "symbol": "XAUUSD",
+  "stats": {
+    "total_signals": 7,
+    "resolved": 7,
+    "pending_at_end": 0,
+    "wins": 3,
+    "losses": 4,
+    "win_rate": 42.9,
+    "profit_factor": 0.73,
+    "expectancy_per_trade": -15.67,
+    "total_pnl": -109.67,
+    "max_drawdown": 409.04,
+    "average_rr": 0.98,
+    "weekday_breakdown": {
+      "3": {
+        "wins": 1,
+        "losses": 1
+      },
+      "4": {
+        "wins": 1,
+        "losses": 0
+      },
+      "1": {
+        "wins": 0,
+        "losses": 1
+      },
+      "6": {
+        "wins": 0,
+        "losses": 1
+      },
+      "2": {
+        "wins": 1,
+        "losses": 1
+      }
+    }
+  },
+  "trades": [
+    {
+      "symbol": "XAUUSD",
+      "direction": "bullish",
+      "entry_price": 4210.2998,
+      "sl_price": 4139.20356,
+      "tp1": 4281.39605,
+      "score": 8,
+      "entry_time": 1764824400,
+      "outcome": "WIN",
+      "pnl": 99.53
+    },
+    {
+      "symbol": "XAUUSD",
+      "direction": "bearish",
+      "entry_price": 5046.3999,
+      "sl_price": 5176.24283,
+      "tp1": 4916.55697,
+      "score": 8,
+      "entry_time": 1771009200,
+      "outcome": "WIN",
+      "pnl": 103.87
+    },
+    {
+      "symbol": "XAUUSD",
+      "direction": "bullish",
+      "entry_price": 5286.7998,
+      "sl_price": 5109.69264,
+      "tp1": 5463.90697,
+      "score": 8,
+      "entry_time": 1772528400,
+      "outcome": "LOSS",
+      "pnl": -106.26
+    },
+    {
+      "symbol": "XAUUSD",
+      "direction": "bullish",
+      "entry_price": 4709.2002,
+      "sl_price": 4626.96804,
+      "tp1": 4791.43235,
+      "score": 8,
+      "entry_time": 1778731200,
+      "outcome": "LOSS",
+      "pnl": -98.68
+    },
+    {
+      "symbol": "XAUUSD",
+      "direction": "bullish",
+      "entry_price": 4084.30005,
+      "sl_price": 4016.41068,
+      "tp1": 4152.18942,
+      "score": 8,
+      "entry_time": 1783893600,
+      "outcome": "LOSS",
+      "pnl": -101.83
+    },
+    {
+      "symbol": "XAUUSD",
+      "direction": "bullish",
+      "entry_price": 4686.6001,
+      "sl_price": 4632.77124,
+      "tp1": 4740.42896,
+      "score": 8,
+      "entry_time": 1787749200,
+      "outcome": "LOSS",
+      "pnl": -102.27
+    },
+    {
+      "symbol": "XAUUSD",
+      "direction": "bearish",
+      "entry_price": 4459.2998,
+      "sl_price": 4579.26786,
+      "tp1": 4339.33175,
+      "score": 8,
+      "entry_time": 1788958800,
+      "outcome": "WIN",
+      "pnl": 95.97
+    }
+  ]
+}
