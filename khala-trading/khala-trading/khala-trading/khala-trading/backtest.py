@@ -81,86 +81,41 @@ def print_report(symbol, stats, trades):
 
 def main():
     parser = argparse.ArgumentParser(description='Backtest the Khala Trading signal engine against historical data.')
-    parser.add_argument('symbol', help="Symbol to backtest (e.g. XAUUSD), a comma-separated list (XAUUSD,EURUSD,GBPUSD), or 'all' for every supported symbol")
+    parser.add_argument('symbol', help='Symbol to backtest, e.g. XAUUSD')
     parser.add_argument('--range', default='2y', help='Historical range to fetch (e.g. 6mo, 1y, 2y). Yahoo max for 1h data is roughly 2y.')
     parser.add_argument('--balance', type=float, default=10000, help='Simulated account balance')
     parser.add_argument('--risk', type=float, default=1.0, help='Risk percent per trade')
     args = parser.parse_args()
 
-    if args.symbol.lower() == 'all':
-        symbols = list(PIP_CONFIG.keys())
-    else:
-        symbols = [s.strip().upper() for s in args.symbol.split(',')]
+    symbol = args.symbol.upper()
+    if symbol not in PIP_CONFIG:
+        print(f"Unknown symbol '{symbol}'. Supported: {list(PIP_CONFIG.keys())}")
+        sys.exit(1)
 
-    for s in symbols:
-        if s not in PIP_CONFIG:
-            print(f"Unknown symbol '{s}'. Supported: {list(PIP_CONFIG.keys())}")
-            sys.exit(1)
+    pip_cfg = PIP_CONFIG[symbol]
 
-    all_stats = {}
-    all_trades_combined = []
+    print(f"Fetching {args.range} of historical 1H data for {symbol}...")
+    candles_1h = price_feed.fetch_candles(symbol, interval='60m', range_=args.range)
+    print(f"Got {len(candles_1h)} candles. Running walk-forward backtest (this may take a few minutes)...")
 
-    for symbol in symbols:
-        pip_cfg = PIP_CONFIG[symbol]
-        print(f"\n{'='*60}\nFetching {args.range} of historical 1H data for {symbol}...")
-        try:
-            candles_1h = price_feed.fetch_candles(symbol, interval='60m', range_=args.range)
-        except Exception as e:
-            print(f"Failed to fetch data for {symbol}: {e} -- skipping")
-            continue
-        print(f"Got {len(candles_1h)} candles. Running walk-forward backtest (this may take a few minutes)...")
+    trades, stats = backtest_engine.run_backtest(
+        symbol, candles_1h,
+        account_balance=args.balance, risk_percent=args.risk,
+        pip_value_per_lot=pip_cfg['pip_value_per_lot'], pip_size=pip_cfg['pip_size'],
+    )
 
-        trades, stats = backtest_engine.run_backtest(
-            symbol, candles_1h,
-            account_balance=args.balance, risk_percent=args.risk,
-            pip_value_per_lot=pip_cfg['pip_value_per_lot'], pip_size=pip_cfg['pip_size'],
-        )
+    print_report(symbol, stats, trades)
 
-        print_report(symbol, stats, trades)
-        all_stats[symbol] = stats
-        all_trades_combined.extend(trades)
+    # Save full trade list to a file for further analysis
+    import json
+    out_path = f'backtest_{symbol}_{args.range}.json'
+    with open(out_path, 'w') as f:
+        json.dump({'symbol': symbol, 'stats': stats, 'trades': trades}, f, indent=2, default=str)
+    print(f"Full trade-by-trade results saved to {out_path}")
 
-        import json
-        out_path = f'backtest_{symbol}_{args.range}.json'
-        with open(out_path, 'w') as f:
-            json.dump({'symbol': symbol, 'stats': stats, 'trades': trades}, f, indent=2, default=str)
-
-        html_path = f'backtest_{symbol}_{args.range}.html'
-        report_generator.generate_html_report(symbol, stats, trades, html_path)
-
-    if len(symbols) > 1:
-        print_aggregate_summary(all_stats, all_trades_combined, args.range)
-
-
-def print_aggregate_summary(all_stats, all_trades_combined, range_label):
-    print()
-    print('=' * 60)
-    print(f'  PORTFOLIO SUMMARY -- ALL SYMBOLS COMBINED ({range_label})')
-    print('=' * 60)
-
-    total_signals = sum(s['total_signals'] for s in all_stats.values())
-    total_resolved = sum(s['resolved'] for s in all_stats.values())
-    total_wins = sum(s['wins'] for s in all_stats.values())
-    total_losses = sum(s['losses'] for s in all_stats.values())
-    total_pnl = sum(s['total_pnl'] for s in all_stats.values())
-
-    print(f"  Symbols tested:            {', '.join(all_stats.keys())}")
-    print(f"  Total signals (all symbols): {total_signals}")
-    print(f"  Total resolved:             {total_resolved}")
-    print(f"  Combined win rate:          {round(total_wins/total_resolved*100, 1) if total_resolved else 'N/A'}%")
-    print(f"  Combined total P&L:         ${round(total_pnl, 2)}")
-    print()
-    print("  Per-symbol breakdown:")
-    for symbol, stats in all_stats.items():
-        print(f"    {symbol:10s} {stats['total_signals']:3d} signals | {stats['win_rate']}% win rate | "
-              f"PF {stats['profit_factor']} | P&L ${stats['total_pnl']}")
-    print('=' * 60)
-    print()
-    if total_resolved < 50:
-        print(f"  NOTE: {total_resolved} total resolved trades across ALL symbols is still on the low")
-        print(f"  side. Consider a longer range (--range 2y) or accept that this many symbols")
-        print(f"  at this quality bar naturally produces this frequency.")
-    print()
+    html_path = f'backtest_{symbol}_{args.range}.html'
+    report_generator.generate_html_report(symbol, stats, trades, html_path)
+    print(f"Visual report saved to {html_path} -- open it in any browser")
 
 
 if __name__ == '__main__':

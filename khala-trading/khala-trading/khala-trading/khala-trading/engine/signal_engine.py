@@ -151,16 +151,13 @@ def calculate_dynamic_sl(direction, swing_price, candles, symbol=None,
 
 
 def calculate_targets(direction, entry_price, sl_price):
-    """TP1/TP2/TP3 at 1.5R, 2.5R, 4R (risk-reward multiples of the SL distance).
-    Widened from the original 1R/2R/3R after backtesting showed the tight
-    1R TP1 was capping realized R:R at exactly 1.0 -- barely above breakeven
-    despite a >50% win rate."""
+    """TP1/TP2/TP3 at 1R, 2R, 3R (risk-reward multiples of the SL distance)."""
     risk = abs(entry_price - sl_price)
     sign = -1 if direction == 'bearish' else 1
     return {
-        'tp1': round(entry_price + sign * risk * 1.5, 5),
-        'tp2': round(entry_price + sign * risk * 2.5, 5),
-        'tp3': round(entry_price + sign * risk * 4, 5),
+        'tp1': round(entry_price + sign * risk * 1, 5),
+        'tp2': round(entry_price + sign * risk * 2, 5),
+        'tp3': round(entry_price + sign * risk * 3, 5),
     }
 
 

@@ -1,4 +1,54 @@
-<!DOCTYPE html>
+"""
+Khala Trading -- Backtest HTML Report Generator
+----------------------------------------------------
+Turns real backtest_engine.py output (verified zero-lookahead, real
+historical data) into a visual report: equity curve + drawdown, win rate
+by weekday, P&L distribution, and a full trade log. Self-contained HTML
+file, no server needed -- just open it in a browser.
+"""
+
+import json
+
+
+def generate_html_report(symbol, stats, trades, out_path):
+    resolved = [t for t in trades if t['outcome'] in ('WIN', 'LOSS')]
+
+    equity = 0.0
+    equity_curve = [0.0]
+    peak = 0.0
+    drawdown_curve = [0.0]
+    for t in resolved:
+        equity += t['pnl']
+        peak = max(peak, equity)
+        equity_curve.append(round(equity, 2))
+        drawdown_curve.append(round(peak - equity, 2))
+
+    weekday_names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    weekday_labels = [weekday_names[wd] for wd in sorted(stats['weekday_breakdown'].keys())]
+    weekday_wins = [stats['weekday_breakdown'][wd]['wins'] for wd in sorted(stats['weekday_breakdown'].keys())]
+    weekday_losses = [stats['weekday_breakdown'][wd]['losses'] for wd in sorted(stats['weekday_breakdown'].keys())]
+
+    pnl_values = [t['pnl'] for t in resolved]
+
+    data = {
+        'symbol': symbol,
+        'stats': stats,
+        'equity_curve': equity_curve,
+        'drawdown_curve': drawdown_curve,
+        'weekday_labels': weekday_labels,
+        'weekday_wins': weekday_wins,
+        'weekday_losses': weekday_losses,
+        'pnl_values': pnl_values,
+        'trades': resolved[-100:],  # most recent 100 for the table, avoid a huge page
+    }
+
+    html = HTML_TEMPLATE.replace('__DATA_JSON__', json.dumps(data, default=str))
+    with open(out_path, 'w') as f:
+        f.write(html)
+    return out_path
+
+
+HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -58,7 +108,7 @@
   </div>
 
 <script>
-const data = {"symbol": "XAUUSD", "stats": {"total_signals": 15, "resolved": 14, "pending_at_end": 1, "wins": 8, "losses": 6, "win_rate": 57.1, "profit_factor": 1.98, "expectancy_per_trade": 41.73, "total_pnl": 584.27, "max_drawdown": 297.32, "average_rr": 1.48, "weekday_breakdown": {"1": {"wins": 3, "losses": 1}, "0": {"wins": 3, "losses": 1}, "3": {"wins": 1, "losses": 2}, "4": {"wins": 1, "losses": 2}}}, "equity_curve": [0.0, 151.92, 299.91, 454.79, 357.05, 256.17, 157.47, 305.51, 205.73, 346.92, 502.14, 639.35, 783.48, 689.0, 584.27], "drawdown_curve": [0.0, 0.0, 0.0, 0.0, 97.74, 198.62, 297.32, 149.28, 249.06, 107.87, 0.0, 0.0, 0.0, 94.48, 199.21], "weekday_labels": ["Mon", "Tue", "Thu", "Fri"], "weekday_wins": [3, 3, 1, 1], "weekday_losses": [1, 1, 2, 2], "pnl_values": [151.92, 147.99, 154.88, -97.74, -100.88, -98.7, 148.04, -99.78, 141.19, 155.22, 137.21, 144.13, -94.48, -104.73], "trades": [{"symbol": "XAUUSD", "direction": "bullish", "entry_price": 3968.6001, "sl_price": 3936.95, "tp1": 4016.07524, "score": 6, "entry_time": 1759820400, "outcome": "WIN", "pnl": 151.92}, {"symbol": "XAUUSD", "direction": "bullish", "entry_price": 4016.19995, "sl_price": 3950.42846, "tp1": 4114.85719, "score": 7, "entry_time": 1759878000, "outcome": "WIN", "pnl": 147.99}, {"symbol": "XAUUSD", "direction": "bullish", "entry_price": 4113.7998, "sl_price": 3966.29637, "tp1": 4335.05496, "score": 7, "entry_time": 1760360400, "outcome": "WIN", "pnl": 154.88}, {"symbol": "XAUUSD", "direction": "bullish", "entry_price": 4344.2998, "sl_price": 4204.67116, "tp1": 4553.74277, "score": 7, "entry_time": 1760644800, "outcome": "LOSS", "pnl": -97.74}, {"symbol": "XAUUSD", "direction": "bullish", "entry_price": 4294.7998, "sl_price": 4203.08936, "tp1": 4432.36547, "score": 7, "entry_time": 1760958000, "outcome": "LOSS", "pnl": -100.88}, {"symbol": "XAUUSD", "direction": "bearish", "entry_price": 4185.2998, "sl_price": 4432.03927, "tp1": 3815.19061, "score": 7, "entry_time": 1761051600, "outcome": "LOSS", "pnl": -98.7}, {"symbol": "XAUUSD", "direction": "bullish", "entry_price": 4431.1001, "sl_price": 4355.18197, "tp1": 4544.97729, "score": 7, "entry_time": 1766376000, "outcome": "WIN", "pnl": 148.04}, {"symbol": "XAUUSD", "direction": "bullish", "entry_price": 4540.5, "sl_price": 4440.72164, "tp1": 4690.16754, "score": 7, "entry_time": 1766725200, "outcome": "LOSS", "pnl": -99.78}, {"symbol": "XAUUSD", "direction": "bullish", "entry_price": 4394.1001, "sl_price": 4259.63553, "tp1": 4595.79695, "score": 9, "entry_time": 1767330000, "outcome": "WIN", "pnl": 141.19}, {"symbol": "XAUUSD", "direction": "bullish", "entry_price": 4600.0, "sl_price": 4452.17132, "tp1": 4821.74302, "score": 7, "entry_time": 1768176000, "outcome": "WIN", "pnl": 155.22}, {"symbol": "XAUUSD", "direction": "bullish", "entry_price": 4798.7998, "sl_price": 4570.11424, "tp1": 5141.82815, "score": 7, "entry_time": 1769040000, "outcome": "WIN", "pnl": 137.21}, {"symbol": "XAUUSD", "direction": "bullish", "entry_price": 5174.7002, "sl_price": 5014.56077, "tp1": 5414.90933, "score": 7, "entry_time": 1769544000, "outcome": "WIN", "pnl": 144.13}, {"symbol": "XAUUSD", "direction": "bullish", "entry_price": 5548.5, "sl_price": 5233.55748, "tp1": 6020.91378, "score": 7, "entry_time": 1769644800, "outcome": "LOSS", "pnl": -94.48}, {"symbol": "XAUUSD", "direction": "bullish", "entry_price": 5145.0, "sl_price": 5049.78931, "tp1": 5287.81603, "score": 6, "entry_time": 1769760000, "outcome": "LOSS", "pnl": -104.73}]};
+const data = __DATA_JSON__;
 document.getElementById('title').textContent = 'Backtest Report -- ' + data.symbol;
 
 const s = data.stats;
@@ -137,3 +187,4 @@ document.getElementById('trade-rows').innerHTML = data.trades.slice().reverse().
 </script>
 </body>
 </html>
+"""

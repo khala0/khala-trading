@@ -87,20 +87,6 @@ def generate_signal(symbol, candles_4h, candles_1h, candles_5m, candles_15m=None
                 f"High-impact {event['currency']} news ({event['event']}) near this time -- trading paused as a precaution",
             )
 
-    # --- Step 1b: Wednesday filter -- a 1-year XAUUSD backtest showed a
-    # 22% win rate on Wednesdays (4W/14L) vs 50-70% on every other weekday.
-    # Likely FOMC minutes / mid-week consolidation noise. Evidence-based,
-    # not arbitrary -- uses the reference candle's own timestamp so this
-    # works correctly in both live trading and historical backtesting. ---
-    reference_time = candles_1h[-1].get('time') if candles_1h else None
-    if reference_time is not None:
-        weekday = time.gmtime(reference_time).tm_wday  # Monday=0 ... Wednesday=2
-        if weekday == 2:
-            return _no_trade_result(
-                symbol, 'NO TRADE',
-                'Wednesday filter active -- backtesting showed a significantly worse win rate on Wednesdays for this symbol',
-            )
-
     # --- Step 2: multi-timeframe bias. 4H=direction (required), 1H=refinement,
     # 15M=setup confirmation + SL anchor, 5M=entry trigger only ---
     bias = multi_timeframe_engine.determine_bias(candles_4h, candles_1h, candles_5m, candles_15m=candles_15m)
@@ -176,30 +162,55 @@ def generate_signal(symbol, candles_4h, candles_1h, candles_5m, candles_15m=None
         pip_value_per_lot=pip_value_per_lot, pip_size=pip_size,
     )
 
-    # --- Step 4: restructured scoring (max 10 points) ---
-    # 4H trend:          2 pts  (required but not sufficient alone)
-    # 1H agrees 4H:      2 pts  (structural alignment)
-    # 15M agrees:        2 pts  (confirmation layer -- new, key differentiator)
-    # 5M trigger:        1 pt   (entry timing)
-    # Premium/discount:  1 pt   (ICT equilibrium zone)
-    # Fibonacci zone:    1 pt   (SK system retracement)
-    # CRT sweep:         1 pt   (liquidity grab confirmation)
-    # Threshold = 7.5 means a setup needs at minimum: 4H + 1H + 15M + 5M + one confluence
-    # factor -- not just "trend exists + any 5M candle closed the right way."
-
-    trend_pts = 2  # 4H trend established (we wouldn't be here without it)
-    htf_pts = 2 if bias['htf_agreement'] else 0  # 1H agrees with 4H
-    mtf_pts = 2 if bias.get('trend_15m') == direction else 0  # 15M confirms
-    exec_pts = 1 if bias['execution_ready'] else 0  # 5M trigger
+    # --- Step 4: scoring. Execution trigger is mandatory to reach signal
+    # grade -- this is what enforces "5M is execution-only": without a real
+    # trigger candle, the setup simply can't score high enough. ---
+    execution_pts = 3 if bias['execution_ready'] else 0
+    htf_agreement_pts = 4 if bias['htf_agreement'] else 0
 
     stable_high, stable_low = _stable_range(structure_4h)
-    range_high, range_low = stable_high, stable_low
 
+    opposite_level = stable_low if direction == 'bearish' else stable_high
+    stop_distance = abs(entry_price - sl_data['sl_price'])
+    if opposite_level is not None and stop_distance > 0:
+        reward_potential = abs(entry_price - opposite_level) / stop_distance
+    else:
+        reward_potential = 0
+    reward_pts = 2 if reward_potential >= 3 else (1 if reward_potential >= 2 else 0)
+
+    range_high, range_low = stable_high, stable_low
     if range_high is not None and range_low is not None:
         pd_analysis = premium_discount.analyze(direction, entry_price, range_high, range_low)
     else:
         pd_analysis = {'equilibrium': None, 'zone': None, 'favorable': False, 'depth': 0}
     pd_pts = 1 if pd_analysis['favorable'] else 0
+
+    ref_high, ref_low = crt_sweep.get_reference_range(candles_1h, lookback_bars=24)
+    if ref_high is not None:
+        sweep_result = crt_sweep.detect_sweep(candles_1h, ref_high, ref_low)
+    else:
+        sweep_result = {'swept': False, 'direction': None, 'swept_level': None}
+    crt_pts = 0.5 if (sweep_result['swept'] and sweep_result['direction'] == direction) else 0
+
+    # NOTE: two DIFFERENT tolerances, both scaled off ATR so they behave
+    # sanely across every symbol (a fixed dollar amount does not -- e.g.
+    # $0.15 is ~1000 pips on EURUSD but a rounding error on BTCUSD):
+    #   - snr_proximity: how close a level must be to current price to
+    #     count as confluence at all.
+    #   - snr_level_tolerance: how close two candles' highs/lows/opens/
+    #     closes must be to each other to count as "the same level" when
+    #     detecting formations in the first place. This one was previously
+    #     left at snr_levels.py's hardcoded 0.15 default regardless of
+    #     symbol -- worth re-tuning/backtesting the 0.1 multiplier below,
+    #     it's a reasonable starting point rather than a calibrated one.
+    atr_value = sl_data.get('atr_value')
+    snr_proximity = atr_value * 2 if atr_value else 5
+    snr_level_tolerance = atr_value * 0.1 if atr_value else 0.15
+    snr_result = snr_levels.analyze(
+        candles_1h, direction, entry_price,
+        max_distance=snr_proximity, level_tolerance=snr_level_tolerance,
+    )
+    snr_pts = 0.5 if snr_result['has_confluence'] else 0
 
     if range_high is not None and range_low is not None:
         point_0 = range_low if direction == 'bullish' else range_high
@@ -209,32 +220,12 @@ def generate_signal(symbol, candles_4h, candles_1h, candles_5m, candles_15m=None
         fib_result = {'retracement_ratio': None, 'in_entry_zone': False, 'target_c': None}
     fib_pts = 1 if fib_result['in_entry_zone'] else 0
 
-    ref_high, ref_low = crt_sweep.get_reference_range(candles_1h, lookback_bars=24)
-    if ref_high is not None:
-        sweep_result = crt_sweep.detect_sweep(candles_1h, ref_high, ref_low)
-    else:
-        sweep_result = {'swept': False, 'direction': None, 'swept_level': None}
-    crt_pts = 1 if (sweep_result['swept'] and sweep_result['direction'] == direction) else 0
-
-    atr_value = sl_data.get('atr_value')
-    snr_proximity = atr_value * 2 if atr_value else 5
-    snr_level_tolerance = atr_value * 0.1 if atr_value else 0.15
-    snr_result = snr_levels.analyze(
-        candles_1h, direction, entry_price,
-        max_distance=snr_proximity, level_tolerance=snr_level_tolerance,
-    )
-
-    # Reward:risk kept for narrative/display but removed from score since it
-    # depends on the same stable_range reference that's often unavailable --
-    # keeping it in the score was producing silent 0s that biased everything down.
-    stop_distance = abs(entry_price - sl_data['sl_price'])
-    opposite_level = stable_low if direction == 'bearish' else stable_high
-    if opposite_level is not None and stop_distance > 0:
-        reward_potential = abs(entry_price - opposite_level) / stop_distance
-    else:
-        reward_potential = 0
-
-    score = min(trend_pts + htf_pts + mtf_pts + exec_pts + pd_pts + fib_pts + crt_pts, 10)
+    # Core three (execution + HTF agreement + reward:risk) can reach signal
+    # grade on their own -- SNR/CRT/premium-discount/fib are genuine bonus
+    # confluence, not additional mandatory simultaneous requirements. This
+    # is what keeps signals achievable on real trending data instead of
+    # requiring every narrow, momentary condition to align at once.
+    score = min(execution_pts + htf_agreement_pts + reward_pts + pd_pts + crt_pts + snr_pts + fib_pts, 10)
     is_signal = score >= signal_engine.MIN_SIGNAL_SCORE
 
     if is_signal:
