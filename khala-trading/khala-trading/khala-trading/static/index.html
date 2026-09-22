@@ -304,7 +304,7 @@
 </main>
 
 <script>
-const SYMBOLS = ['XAUUSD','EURUSD','GBPUSD','USDJPY','US30','NAS100','BTCUSD','XAGUSD'];
+const SYMBOLS = ['XAUUSD','EURUSD','GBPUSD','US30','NAS100','BTCUSD','XAGUSD'];
 let authMode = 'login'; // or 'signup'
 let authState = { logged_in: false, email: null, is_subscribed: false, is_admin: false };
 
@@ -540,17 +540,6 @@ async function loadSignal(sym) {
         <div class="panel-title">SIGNAL REASONING</div>
         <div class="narrative">${s.narrative}</div>
       </div>
-      ${s.ai_validation && s.ai_validation.validation_ran ? `
-      <div class="panel" style="grid-column: span 2; border-color: ${s.ai_validation.approved ? 'var(--green)' : 'var(--red)'}; background: ${s.ai_validation.approved ? 'rgba(46,213,115,0.05)' : 'rgba(255,71,87,0.05)'};">
-        <div class="panel-title" style="color:${s.ai_validation.approved ? 'var(--green)' : 'var(--red)'};">
-          AI ANALYST ${s.ai_validation.approved ? '✓ APPROVED' : '✗ REJECTED'} — ${(s.ai_validation.confidence||'').toUpperCase()} CONFIDENCE
-        </div>
-        <div class="narrative">${s.ai_validation.reasoning}</div>
-        ${s.ai_validation.risks && s.ai_validation.risks.length ? `
-        <div style="margin-top:8px;">
-          ${s.ai_validation.risks.map(r => `<span style="background:rgba(255,71,87,0.15);color:var(--red);padding:2px 8px;border-radius:4px;font-size:11px;margin-right:6px;">${r}</span>`).join('')}
-        </div>` : ''}
-      </div>` : ''}
     `;
   } catch (e) {
     content.innerHTML = `<div>Failed to load signal: ${e}</div>`;

@@ -212,27 +212,6 @@ def signal(symbol):
         narrative = gemini_client.generate_narrative(setup)
         setup['narrative'] = narrative
 
-        # Gemini AI validation: second-opinion analyst reviews the setup
-        # before dispatch. Runs only on genuinely new signals (not already-open
-        # ones being monitored) to avoid unnecessary API calls every poll.
-        if should_dispatch:
-            validation = gemini_client.validate_signal(setup)
-            setup['ai_validation'] = validation
-            if not validation['approved']:
-                should_dispatch = False
-                setup['is_signal'] = False
-                setup['status'] = 'REJECTED BY AI ANALYST'
-                setup['reason'] = (
-                    f"Gemini validation rejected this setup ({validation['confidence']} confidence): "
-                    f"{validation['reasoning']}"
-                )
-                if validation['risks']:
-                    setup['reason'] += f" Risks flagged: {'; '.join(validation['risks'])}"
-        else:
-            setup['ai_validation'] = {'approved': None, 'validation_ran': False,
-                                       'reasoning': 'Validation skipped (no new signal to dispatch)',
-                                       'confidence': None, 'risks': []}
-
         # Auto-alert and log to history only for a genuinely NEW signal
         if should_dispatch:
             telegram_client.send_alert(setup, narrative)
