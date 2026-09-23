@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Khala Trading -- Backtest Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --bg: #090b10; --panel: #12151c; --border: #232733;
+    --accent: #00d9c0; --green: #2ed573; --red: #ff4757; --text-dim: #7a8699;
+  }
+  body { background: var(--bg); color: #e8eaf0; font-family: 'JetBrains Mono', monospace; margin: 0; padding: 24px; }
+  h1 { font-size: 20px; color: var(--accent); }
+  .subtitle { color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 20px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .card-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px; }
+  .card-value { font-size: 20px; font-weight: 700; }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+  .panel-title { font-size: 13px; color: var(--accent); font-weight: 600; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; color: var(--text-dim); padding: 6px; border-bottom: 1px solid var(--border); font-size: 10px; text-transform: uppercase; }
+  td { padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  .charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+  .warning { background: rgba(255,171,0,0.08); border: 1px solid #ffab00; border-radius: 8px; padding: 12px; margin-bottom: 20px; font-size: 12px; color: #ffab00; }
+</style>
+</head>
+<body>
+  <h1 id="title"></h1>
+  <div class="subtitle">Backtested against real historical data with verified zero lookahead bias. Not a guarantee of live performance.</div>
+  <div id="low-sample-warning" class="warning" style="display:none;"></div>
+
+  <div class="grid" id="metrics"></div>
+
+  <div class="charts-row">
+    <div class="panel">
+      <div class="panel-title">EQUITY CURVE & DRAWDOWN</div>
+      <canvas id="equityChart" height="100"></canvas>
+    </div>
+    <div class="panel">
+      <div class="panel-title">WIN/LOSS BY WEEKDAY</div>
+      <canvas id="weekdayChart" height="140"></canvas>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">P&amp;L DISTRIBUTION</div>
+    <canvas id="pnlChart" height="60"></canvas>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">TRADE LOG (most recent 100)</div>
+    <table>
+      <thead><tr><th>Direction</th><th>Entry</th><th>SL</th><th>TP1</th><th>Score</th><th>Outcome</th><th>P&amp;L</th></tr></thead>
+      <tbody id="trade-rows"></tbody>
+    </table>
+  </div>
+
+<script>
+const data = {"symbol": "US30", "stats": {"total_signals": 82, "resolved": 81, "pending_at_end": 1, "wins": 27, "losses": 54, "win_rate": 33.3, "profit_factor": 0.75, "expectancy_per_trade": -16.47, "total_pnl": -1334.41, "max_drawdown": 1531.68, "average_rr": 1.51, "weekday_breakdown": {"0": {"wins": 5, "losses": 13}, "3": {"wins": 9, "losses": 13}, "1": {"wins": 5, "losses": 17}, "4": {"wins": 7, "losses": 9}, "6": {"wins": 1, "losses": 2}}}, "equity_curve": [0.0, -97.5, -199.19, -301.82, -401.05, -501.09, -599.06, -702.66, -804.59, -905.36, -1006.85, -856.42, -954.89, -1052.2, -1151.47, -1004.43, -856.78, -955.6, -806.71, -655.61, -760.32, -860.09, -712.81, -559.53, -422.64, -534.11, -360.45, -459.29, -557.96, -657.11, -756.32, -854.14, -708.25, -557.48, -657.26, -508.39, -609.76, -709.88, -558.62, -658.0, -758.24, -858.38, -708.12, -811.01, -910.3, -760.15, -858.36, -712.4, -559.41, -660.22, -761.27, -862.07, -964.0, -1063.14, -1161.38, -1261.86, -1110.21, -1210.4, -1058.95, -1157.53, -1256.14, -1103.03, -1205.18, -1303.27, -1156.81, -1249.16, -1098.58, -1198.51, -1297.91, -1138.04, -1241.45, -1338.96, -1186.69, -1287.01, -1392.23, -1232.87, -1335.41, -1432.13, -1531.68, -1380.1, -1481.95, -1334.41], "drawdown_curve": [0.0, 97.5, 199.19, 301.82, 401.05, 501.09, 599.06, 702.66, 804.59, 905.36, 1006.85, 856.42, 954.89, 1052.2, 1151.47, 1004.43, 856.78, 955.6, 806.71, 655.61, 760.32, 860.09, 712.81, 559.53, 422.64, 534.11, 360.45, 459.29, 557.96, 657.11, 756.32, 854.14, 708.25, 557.48, 657.26, 508.39, 609.76, 709.88, 558.62, 658.0, 758.24, 858.38, 708.12, 811.01, 910.3, 760.15, 858.36, 712.4, 559.41, 660.22, 761.27, 862.07, 964.0, 1063.14, 1161.38, 1261.86, 1110.21, 1210.4, 1058.95, 1157.53, 1256.14, 1103.03, 1205.18, 1303.27, 1156.81, 1249.16, 1098.58, 1198.51, 1297.91, 1138.04, 1241.45, 1338.96, 1186.69, 1287.01, 1392.23, 1232.87, 1335.41, 1432.13, 1531.68, 1380.1, 1481.95, 1334.41], "weekday_labels": ["Mon", "Tue", "Thu", "Fri", "Sun"], "weekday_wins": [5, 5, 9, 7, 1], "weekday_losses": [13, 17, 13, 9, 2], "pnl_values": [-97.5, -101.69, -102.63, -99.23, -100.04, -97.97, -103.6, -101.93, -100.77, -101.49, 150.43, -98.47, -97.31, -99.27, 147.04, 147.65, -98.82, 148.89, 151.1, -104.71, -99.77, 147.28, 153.28, 136.89, -111.47, 173.66, -98.84, -98.67, -99.15, -99.21, -97.82, 145.89, 150.77, -99.78, 148.87, -101.37, -100.12, 151.26, -99.38, -100.24, -100.14, 150.26, -102.89, -99.29, 150.15, -98.21, 145.96, 152.99, -100.81, -101.05, -100.8, -101.93, -99.14, -98.24, -100.48, 151.65, -100.19, 151.45, -98.58, -98.61, 153.11, -102.15, -98.09, 146.46, -92.35, 150.58, -99.93, -99.4, 159.87, -103.41, -97.51, 152.27, -100.32, -105.22, 159.36, -102.54, -96.72, -99.55, 151.58, -101.85, 147.54], "trades": [{"symbol": "US30", "direction": "bearish", "entry_price": 42131.0, "sl_price": 42780.97143, "tp1": 41156.04286, "score": 7, "entry_time": 1728324000, "outcome": "LOSS", "pnl": -97.5}, {"symbol": "US30", "direction": "bullish", "entry_price": 42826.0, "sl_price": 42190.42857, "tp1": 43779.35715, "score": 7, "entry_time": 1728518400, "outcome": "LOSS", "pnl": -101.69}, {"symbol": "US30", "direction": "bearish", "entry_price": 42181.0, "sl_price": 42721.14286, "tp1": 41370.78571, "score": 7, "entry_time": 1730358000, "outcome": "LOSS", "pnl": -102.63}, {"symbol": "US30", "direction": "bullish", "entry_price": 43887.0, "sl_price": 42894.71428, "tp1": 45375.42858, "score": 7, "entry_time": 1730937600, "outcome": "LOSS", "pnl": -99.23}, {"symbol": "US30", "direction": "bearish", "entry_price": 42431.0, "sl_price": 43340.42856, "tp1": 41066.85716, "score": 7, "entry_time": 1734566400, "outcome": "LOSS", "pnl": -100.04}, {"symbol": "US30", "direction": "bullish", "entry_price": 43522.0, "sl_price": 42822.2, "tp1": 44571.7, "score": 7, "entry_time": 1735054200, "outcome": "LOSS", "pnl": -97.97}, {"symbol": "US30", "direction": "bearish", "entry_price": 42663.0, "sl_price": 43403.0, "tp1": 41553.0, "score": 7, "entry_time": 1735567200, "outcome": "LOSS", "pnl": -103.6}, {"symbol": "US30", "direction": "bullish", "entry_price": 43402.0, "sl_price": 42865.54286, "tp1": 44206.68571, "score": 7, "entry_time": 1736179200, "outcome": "LOSS", "pnl": -101.93}, {"symbol": "US30", "direction": "bullish", "entry_price": 43056.0, "sl_price": 42810.22857, "tp1": 43424.65715, "score": 8, "entry_time": 1736262000, "outcome": "LOSS", "pnl": -100.77}, {"symbol": "US30", "direction": "bearish", "entry_price": 42553.0, "sl_price": 42975.85714, "tp1": 41918.71429, "score": 7, "entry_time": 1736514000, "outcome": "LOSS", "pnl": -101.49}, {"symbol": "US30", "direction": "bullish", "entry_price": 43539.0, "sl_price": 42703.28572, "tp1": 44792.57142, "score": 7, "entry_time": 1736985600, "outcome": "WIN", "pnl": 150.43}, {"symbol": "US30", "direction": "bullish", "entry_price": 44813.0, "sl_price": 43992.42856, "tp1": 46043.85716, "score": 7, "entry_time": 1738004400, "outcome": "LOSS", "pnl": -98.47}, {"symbol": "US30", "direction": "bearish", "entry_price": 44017.0, "sl_price": 44990.14284, "tp1": 42557.28574, "score": 7, "entry_time": 1738555200, "outcome": "LOSS", "pnl": -97.31}, {"symbol": "US30", "direction": "bullish", "entry_price": 45054.0, "sl_price": 44392.2, "tp1": 46046.7, "score": 7, "entry_time": 1738800000, "outcome": "LOSS", "pnl": -99.27}, {"symbol": "US30", "direction": "bearish", "entry_price": 44424.0, "sl_price": 45036.65714, "tp1": 43505.01429, "score": 7, "entry_time": 1738958400, "outcome": "WIN", "pnl": 147.04}, {"symbol": "US30", "direction": "bearish", "entry_price": 43484.0, "sl_price": 44304.28572, "tp1": 42253.57142, "score": 7, "entry_time": 1740164400, "outcome": "WIN", "pnl": 147.65}, {"symbol": "US30", "direction": "bearish", "entry_price": 42295.0, "sl_price": 42876.31429, "tp1": 41423.02857, "score": 7, "entry_time": 1741363200, "outcome": "LOSS", "pnl": -98.82}, {"symbol": "US30", "direction": "bearish", "entry_price": 42806.0, "sl_price": 43004.51429, "tp1": 42508.22856, "score": 9, "entry_time": 1741374000, "outcome": "WIN", "pnl": 148.89}, {"symbol": "US30", "direction": "bearish", "entry_price": 42603.0, "sl_price": 43005.94286, "tp1": 41998.58571, "score": 7, "entry_time": 1741561200, "outcome": "WIN", "pnl": 151.1}, {"symbol": "US30", "direction": "bearish", "entry_price": 41800.0, "sl_price": 42847.05714, "tp1": 40229.41429, "score": 7, "entry_time": 1741629600, "outcome": "LOSS", "pnl": -104.71}, {"symbol": "US30", "direction": "bullish", "entry_price": 42849.0, "sl_price": 42017.57144, "tp1": 44096.14284, "score": 7, "entry_time": 1742824800, "outcome": "LOSS", "pnl": -99.77}, {"symbol": "US30", "direction": "bullish", "entry_price": 41864.0, "sl_price": 41471.25714, "tp1": 42453.11429, "score": 9, "entry_time": 1743429600, "outcome": "WIN", "pnl": 147.28}, {"symbol": "US30", "direction": "bearish", "entry_price": 41552.0, "sl_price": 42573.85714, "tp1": 40019.21429, "score": 7, "entry_time": 1743638400, "outcome": "WIN", "pnl": 153.28}, {"symbol": "US30", "direction": "bearish", "entry_price": 39610.0, "sl_price": 41435.14284, "tp1": 36872.28574, "score": 7, "entry_time": 1743760800, "outcome": "WIN", "pnl": 136.89}, {"symbol": "US30", "direction": "bearish", "entry_price": 37058.0, "sl_price": 39844.85716, "tp1": 32877.71426, "score": 7, "entry_time": 1743976800, "outcome": "LOSS", "pnl": -111.47}, {"symbol": "US30", "direction": "bullish", "entry_price": 41011.0, "sl_price": 37151.85716, "tp1": 46799.71426, "score": 7, "entry_time": 1744243200, "outcome": "WIN", "pnl": 173.66}, {"symbol": "US30", "direction": "bullish", "entry_price": 47026.0, "sl_price": 46444.57144, "tp1": 47898.14284, "score": 7, "entry_time": 1758632400, "outcome": "LOSS", "pnl": -98.84}, {"symbol": "US30", "direction": "bearish", "entry_price": 46506.0, "sl_price": 46846.22857, "tp1": 45995.65715, "score": 7, "entry_time": 1758758400, "outcome": "LOSS", "pnl": -98.67}, {"symbol": "US30", "direction": "bullish", "entry_price": 46821.0, "sl_price": 46270.17143, "tp1": 47647.24285, "score": 7, "entry_time": 1759410000, "outcome": "LOSS", "pnl": -99.15}, {"symbol": "US30", "direction": "bearish", "entry_price": 46095.0, "sl_price": 46756.42857, "tp1": 45102.85715, "score": 7, "entry_time": 1760108400, "outcome": "LOSS", "pnl": -99.21}, {"symbol": "US30", "direction": "bearish", "entry_price": 45965.0, "sl_price": 46780.14284, "tp1": 44742.28574, "score": 7, "entry_time": 1760677200, "outcome": "LOSS", "pnl": -97.82}, {"symbol": "US30", "direction": "bullish", "entry_price": 46916.0, "sl_price": 46308.11429, "tp1": 47827.82857, "score": 7, "entry_time": 1760979600, "outcome": "WIN", "pnl": 145.89}, {"symbol": "US30", "direction": "bullish", "entry_price": 47765.0, "sl_price": 47485.8, "tp1": 48183.8, "score": 7, "entry_time": 1761645600, "outcome": "WIN", "pnl": 150.77}, {"symbol": "US30", "direction": "bullish", "entry_price": 47836.0, "sl_price": 47666.88571, "tp1": 48089.67143, "score": 7, "entry_time": 1761782400, "outcome": "LOSS", "pnl": -99.78}, {"symbol": "US30", "direction": "bullish", "entry_price": 47710.0, "sl_price": 47532.77143, "tp1": 47975.84285, "score": 7, "entry_time": 1761796800, "outcome": "WIN", "pnl": 148.87}, {"symbol": "US30", "direction": "bullish", "entry_price": 48001.0, "sl_price": 47518.28571, "tp1": 48725.07144, "score": 8, "entry_time": 1761829200, "outcome": "LOSS", "pnl": -101.37}, {"symbol": "US30", "direction": "bullish", "entry_price": 47866.0, "sl_price": 47389.22857, "tp1": 48581.15715, "score": 9, "entry_time": 1762128000, "outcome": "LOSS", "pnl": -100.12}, {"symbol": "US30", "direction": "bearish", "entry_price": 47484.0, "sl_price": 47964.2, "tp1": 46763.7, "score": 7, "entry_time": 1762182000, "outcome": "WIN", "pnl": 151.26}, {"symbol": "US30", "direction": "bearish", "entry_price": 46911.0, "sl_price": 47231.57143, "tp1": 46430.14285, "score": 7, "entry_time": 1762524000, "outcome": "LOSS", "pnl": -99.38}, {"symbol": "US30", "direction": "bearish", "entry_price": 47281.0, "sl_price": 47347.82857, "tp1": 47180.75715, "score": 6, "entry_time": 1762768800, "outcome": "LOSS", "pnl": -100.24}, {"symbol": "US30", "direction": "bearish", "entry_price": 47222.0, "sl_price": 47352.05714, "tp1": 47026.91429, "score": 6, "entry_time": 1762783200, "outcome": "LOSS", "pnl": -100.14}, {"symbol": "US30", "direction": "bullish", "entry_price": 47585.0, "sl_price": 47334.57143, "tp1": 47960.64285, "score": 7, "entry_time": 1762869600, "outcome": "WIN", "pnl": 150.26}, {"symbol": "US30", "direction": "bullish", "entry_price": 47973.0, "sl_price": 47329.94286, "tp1": 48937.58571, "score": 7, "entry_time": 1762884000, "outcome": "LOSS", "pnl": -102.89}, {"symbol": "US30", "direction": "bullish", "entry_price": 47229.0, "sl_price": 47034.31429, "tp1": 47521.02857, "score": 6, "entry_time": 1763395200, "outcome": "LOSS", "pnl": -99.29}, {"symbol": "US30", "direction": "bearish", "entry_price": 46843.0, "sl_price": 47468.62857, "tp1": 45904.55714, "score": 7, "entry_time": 1763402400, "outcome": "WIN", "pnl": 150.15}, {"symbol": "US30", "direction": "bearish", "entry_price": 45921.0, "sl_price": 46676.45714, "tp1": 44787.81429, "score": 7, "entry_time": 1763658000, "outcome": "LOSS", "pnl": -98.21}, {"symbol": "US30", "direction": "bullish", "entry_price": 46943.0, "sl_price": 46058.37143, "tp1": 48269.94286, "score": 7, "entry_time": 1764086400, "outcome": "WIN", "pnl": 145.96}, {"symbol": "US30", "direction": "bullish", "entry_price": 48309.0, "sl_price": 47772.2, "tp1": 49114.2, "score": 7, "entry_time": 1765461600, "outcome": "WIN", "pnl": 152.99}, {"symbol": "US30", "direction": "bullish", "entry_price": 48722.0, "sl_price": 48241.97143, "tp1": 49442.04286, "score": 7, "entry_time": 1765803600, "outcome": "LOSS", "pnl": -100.81}, {"symbol": "US30", "direction": "bullish", "entry_price": 48660.0, "sl_price": 48098.62857, "tp1": 49502.05714, "score": 10, "entry_time": 1765897200, "outcome": "LOSS", "pnl": -101.05}, {"symbol": "US30", "direction": "bullish", "entry_price": 48370.0, "sl_price": 48097.57143, "tp1": 48778.64285, "score": 8, "entry_time": 1765904400, "outcome": "LOSS", "pnl": -100.8}, {"symbol": "US30", "direction": "bullish", "entry_price": 48490.0, "sl_price": 48082.28571, "tp1": 49101.57144, "score": 9, "entry_time": 1765908000, "outcome": "LOSS", "pnl": -101.93}, {"symbol": "US30", "direction": "bullish", "entry_price": 48424.0, "sl_price": 48082.14286, "tp1": 48936.78571, "score": 8, "entry_time": 1765911600, "outcome": "LOSS", "pnl": -99.14}, {"symbol": "US30", "direction": "bullish", "entry_price": 48475.0, "sl_price": 48082.02857, "tp1": 49064.45714, "score": 9, "entry_time": 1765915200, "outcome": "LOSS", "pnl": -98.24}, {"symbol": "US30", "direction": "bullish", "entry_price": 48427.0, "sl_price": 48080.51429, "tp1": 48946.72856, "score": 8, "entry_time": 1765926000, "outcome": "LOSS", "pnl": -100.48}, {"symbol": "US30", "direction": "bullish", "entry_price": 48273.0, "sl_price": 47767.48571, "tp1": 49031.27144, "score": 9, "entry_time": 1766016000, "outcome": "WIN", "pnl": 151.65}, {"symbol": "US30", "direction": "bullish", "entry_price": 49003.0, "sl_price": 48631.91429, "tp1": 49559.62856, "score": 7, "entry_time": 1766725200, "outcome": "LOSS", "pnl": -100.19}, {"symbol": "US30", "direction": "bullish", "entry_price": 48616.0, "sl_price": 48022.08571, "tp1": 49506.87144, "score": 8, "entry_time": 1767380400, "outcome": "WIN", "pnl": 151.45}, {"symbol": "US30", "direction": "bullish", "entry_price": 49656.0, "sl_price": 48998.77143, "tp1": 50641.84285, "score": 7, "entry_time": 1767718800, "outcome": "LOSS", "pnl": -98.58}, {"symbol": "US30", "direction": "bearish", "entry_price": 48955.0, "sl_price": 49776.71428, "tp1": 47722.42858, "score": 7, "entry_time": 1768888800, "outcome": "LOSS", "pnl": -98.61}, {"symbol": "US30", "direction": "bearish", "entry_price": 49458.0, "sl_price": 49883.31429, "tp1": 48820.02857, "score": 9, "entry_time": 1769158800, "outcome": "WIN", "pnl": 153.11}, {"symbol": "US30", "direction": "bearish", "entry_price": 48858.0, "sl_price": 49368.74286, "tp1": 48091.88571, "score": 7, "entry_time": 1769698800, "outcome": "LOSS", "pnl": -102.15}, {"symbol": "US30", "direction": "bullish", "entry_price": 49460.0, "sl_price": 48370.08571, "tp1": 51094.87144, "score": 7, "entry_time": 1770048000, "outcome": "LOSS", "pnl": -98.09}, {"symbol": "US30", "direction": "bearish", "entry_price": 48412.0, "sl_price": 49496.85716, "tp1": 46784.71426, "score": 7, "entry_time": 1772431200, "outcome": "WIN", "pnl": 146.46}, {"symbol": "US30", "direction": "bearish", "entry_price": 46702.0, "sl_price": 48241.14284, "tp1": 44393.28574, "score": 7, "entry_time": 1773007200, "outcome": "LOSS", "pnl": -92.35}, {"symbol": "US30", "direction": "bearish", "entry_price": 47022.0, "sl_price": 48137.37143, "tp1": 45348.94286, "score": 7, "entry_time": 1773273600, "outcome": "WIN", "pnl": 150.58}, {"symbol": "US30", "direction": "bearish", "entry_price": 45398.0, "sl_price": 46647.11429, "tp1": 43524.32857, "score": 7, "entry_time": 1774638000, "outcome": "LOSS", "pnl": -99.93}, {"symbol": "US30", "direction": "bearish", "entry_price": 46698.0, "sl_price": 47171.31429, "tp1": 45988.02857, "score": 9, "entry_time": 1775556000, "outcome": "LOSS", "pnl": -99.4}, {"symbol": "US30", "direction": "bullish", "entry_price": 47765.0, "sl_price": 46432.71428, "tp1": 49763.42858, "score": 7, "entry_time": 1775599200, "outcome": "WIN", "pnl": 159.87}, {"symbol": "US30", "direction": "bullish", "entry_price": 49760.0, "sl_price": 48898.28572, "tp1": 51052.57142, "score": 7, "entry_time": 1776434400, "outcome": "LOSS", "pnl": -103.41}, {"symbol": "US30", "direction": "bearish", "entry_price": 48871.0, "sl_price": 49480.42857, "tp1": 47956.85715, "score": 6, "entry_time": 1777507200, "outcome": "LOSS", "pnl": -97.51}, {"symbol": "US30", "direction": "bullish", "entry_price": 49595.0, "sl_price": 48579.85716, "tp1": 51117.71426, "score": 7, "entry_time": 1777557600, "outcome": "WIN", "pnl": 152.27}, {"symbol": "US30", "direction": "bullish", "entry_price": 51109.0, "sl_price": 50337.28572, "tp1": 52266.57142, "score": 7, "entry_time": 1780066800, "outcome": "LOSS", "pnl": -100.32}, {"symbol": "US30", "direction": "bearish", "entry_price": 50420.0, "sl_price": 51472.22857, "tp1": 48841.65715, "score": 7, "entry_time": 1781020800, "outcome": "LOSS", "pnl": -105.22}, {"symbol": "US30", "direction": "bullish", "entry_price": 51518.0, "sl_price": 50000.28572, "tp1": 53794.57142, "score": 7, "entry_time": 1781251200, "outcome": "WIN", "pnl": 159.36}, {"symbol": "US30", "direction": "bullish", "entry_price": 53910.0, "sl_price": 52977.85714, "tp1": 55308.21429, "score": 7, "entry_time": 1785841200, "outcome": "LOSS", "pnl": -102.54}, {"symbol": "US30", "direction": "bearish", "entry_price": 52977.0, "sl_price": 53667.85716, "tp1": 51940.71426, "score": 7, "entry_time": 1787245200, "outcome": "LOSS", "pnl": -96.72}, {"symbol": "US30", "direction": "bullish", "entry_price": 53786.0, "sl_price": 53371.22857, "tp1": 54408.15715, "score": 7, "entry_time": 1787655600, "outcome": "LOSS", "pnl": -99.55}, {"symbol": "US30", "direction": "bearish", "entry_price": 53521.0, "sl_price": 53881.91429, "tp1": 52979.62856, "score": 9, "entry_time": 1787835600, "outcome": "WIN", "pnl": 151.58}, {"symbol": "US30", "direction": "bearish", "entry_price": 52983.0, "sl_price": 53407.37143, "tp1": 52346.44286, "score": 7, "entry_time": 1788249600, "outcome": "LOSS", "pnl": -101.85}, {"symbol": "US30", "direction": "bearish", "entry_price": 53033.0, "sl_price": 53735.57144, "tp1": 51979.14284, "score": 7, "entry_time": 1788843600, "outcome": "WIN", "pnl": 147.54}]};
+document.getElementById('title').textContent = 'Backtest Report -- ' + data.symbol;
+
+const s = data.stats;
+if (s.resolved < 30) {
+  const w = document.getElementById('low-sample-warning');
+  w.style.display = 'block';
+  w.textContent = `Only ${s.resolved} resolved trades -- too few for reliable conclusions. Treat these numbers as rough until you have 50-100+ resolved trades.`;
+}
+
+const metrics = [
+  ['Win Rate', s.win_rate !== null ? s.win_rate + '%' : 'N/A', null],
+  ['Profit Factor', s.profit_factor !== null ? s.profit_factor : 'N/A', null],
+  ['Expectancy/Trade', s.expectancy_per_trade !== null ? '$' + s.expectancy_per_trade : 'N/A', s.expectancy_per_trade],
+  ['Total P&L', '$' + s.total_pnl, s.total_pnl],
+  ['Max Drawdown', '$' + s.max_drawdown, null],
+  ['Avg R:R', s.average_rr !== null ? s.average_rr : 'N/A', null],
+];
+document.getElementById('metrics').innerHTML = metrics.map(([label, value, sign]) => `
+  <div class="card">
+    <div class="card-label">${label}</div>
+    <div class="card-value ${sign !== null ? (sign >= 0 ? 'pos' : 'neg') : ''}">${value}</div>
+  </div>
+`).join('');
+
+new Chart(document.getElementById('equityChart'), {
+  type: 'line',
+  data: {
+    labels: data.equity_curve.map((_, i) => i),
+    datasets: [
+      { label: 'Equity ($)', data: data.equity_curve, borderColor: '#00d9c0', backgroundColor: 'rgba(0,217,192,0.08)', fill: true, tension: 0.3, pointRadius: 0 },
+      { label: 'Drawdown ($)', data: data.drawdown_curve, borderColor: '#ff4757', backgroundColor: 'rgba(255,71,87,0.08)', fill: true, tension: 0.3, pointRadius: 0, yAxisID: 'y1' },
+    ]
+  },
+  options: { responsive: true, plugins: { legend: { labels: { color: '#7a8699' } } },
+    scales: { x: { display: false }, y: { ticks: { color: '#7a8699' }, grid: { color: '#232733' } }, y1: { position: 'right', display: false } } }
+});
+
+new Chart(document.getElementById('weekdayChart'), {
+  type: 'bar',
+  data: { labels: data.weekday_labels, datasets: [
+    { label: 'Wins', data: data.weekday_wins, backgroundColor: '#2ed573' },
+    { label: 'Losses', data: data.weekday_losses, backgroundColor: '#ff4757' },
+  ]},
+  options: { responsive: true, plugins: { legend: { labels: { color: '#7a8699' } } },
+    scales: { x: { ticks: { color: '#7a8699' }, grid: { display: false } }, y: { ticks: { color: '#7a8699' }, grid: { color: '#232733' } } } }
+});
+
+const bucketSize = Math.max(1, Math.ceil((Math.max(...data.pnl_values, 0) - Math.min(...data.pnl_values, 0)) / 12));
+const buckets = {};
+data.pnl_values.forEach(v => {
+  const b = Math.floor(v / bucketSize) * bucketSize;
+  buckets[b] = (buckets[b] || 0) + 1;
+});
+const bucketKeys = Object.keys(buckets).map(Number).sort((a,b) => a-b);
+new Chart(document.getElementById('pnlChart'), {
+  type: 'bar',
+  data: { labels: bucketKeys.map(k => '$' + k), datasets: [{
+    label: 'Trades', data: bucketKeys.map(k => buckets[k]),
+    backgroundColor: bucketKeys.map(k => k >= 0 ? '#2ed573' : '#ff4757'),
+  }]},
+  options: { responsive: true, plugins: { legend: { display: false } },
+    scales: { x: { ticks: { color: '#7a8699' }, grid: { display: false } }, y: { ticks: { color: '#7a8699' }, grid: { color: '#232733' } } } }
+});
+
+document.getElementById('trade-rows').innerHTML = data.trades.slice().reverse().map(t => `
+  <tr>
+    <td>${t.direction.toUpperCase()}</td>
+    <td>${t.entry_price}</td>
+    <td>${t.sl_price}</td>
+    <td>${t.tp1}</td>
+    <td>${t.score}</td>
+    <td style="color:${t.outcome === 'WIN' ? '#2ed573' : '#ff4757'}">${t.outcome}</td>
+    <td style="color:${t.pnl >= 0 ? '#2ed573' : '#ff4757'}">${t.pnl >= 0 ? '+' : ''}$${t.pnl.toFixed(2)}</td>
+  </tr>
+`).join('');
+</script>
+</body>
+</html>

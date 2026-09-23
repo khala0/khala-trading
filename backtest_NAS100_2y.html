@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Khala Trading -- Backtest Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --bg: #090b10; --panel: #12151c; --border: #232733;
+    --accent: #00d9c0; --green: #2ed573; --red: #ff4757; --text-dim: #7a8699;
+  }
+  body { background: var(--bg); color: #e8eaf0; font-family: 'JetBrains Mono', monospace; margin: 0; padding: 24px; }
+  h1 { font-size: 20px; color: var(--accent); }
+  .subtitle { color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 20px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .card-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px; }
+  .card-value { font-size: 20px; font-weight: 700; }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+  .panel-title { font-size: 13px; color: var(--accent); font-weight: 600; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; color: var(--text-dim); padding: 6px; border-bottom: 1px solid var(--border); font-size: 10px; text-transform: uppercase; }
+  td { padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  .charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+  .warning { background: rgba(255,171,0,0.08); border: 1px solid #ffab00; border-radius: 8px; padding: 12px; margin-bottom: 20px; font-size: 12px; color: #ffab00; }
+</style>
+</head>
+<body>
+  <h1 id="title"></h1>
+  <div class="subtitle">Backtested against real historical data with verified zero lookahead bias. Not a guarantee of live performance.</div>
+  <div id="low-sample-warning" class="warning" style="display:none;"></div>
+
+  <div class="grid" id="metrics"></div>
+
+  <div class="charts-row">
+    <div class="panel">
+      <div class="panel-title">EQUITY CURVE & DRAWDOWN</div>
+      <canvas id="equityChart" height="100"></canvas>
+    </div>
+    <div class="panel">
+      <div class="panel-title">WIN/LOSS BY WEEKDAY</div>
+      <canvas id="weekdayChart" height="140"></canvas>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">P&amp;L DISTRIBUTION</div>
+    <canvas id="pnlChart" height="60"></canvas>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">TRADE LOG (most recent 100)</div>
+    <table>
+      <thead><tr><th>Direction</th><th>Entry</th><th>SL</th><th>TP1</th><th>Score</th><th>Outcome</th><th>P&amp;L</th></tr></thead>
+      <tbody id="trade-rows"></tbody>
+    </table>
+  </div>
+
+<script>
+const data = {"symbol": "NAS100", "stats": {"total_signals": 84, "resolved": 83, "pending_at_end": 1, "wins": 36, "losses": 47, "win_rate": 43.4, "profit_factor": 1.15, "expectancy_per_trade": 8.42, "total_pnl": 698.66, "max_drawdown": 967.73, "average_rr": 1.5, "weekday_breakdown": {"1": {"wins": 8, "losses": 7}, "3": {"wins": 14, "losses": 18}, "0": {"wins": 4, "losses": 9}, "4": {"wins": 10, "losses": 10}, "6": {"wins": 0, "losses": 3}}}, "equity_curve": [0.0, 151.19, 297.97, 198.91, 347.41, 249.09, 147.07, 295.24, 196.28, 348.98, 249.39, 150.74, 53.47, -45.06, -145.12, -245.1, -346.22, -444.96, -295.78, -148.61, -250.68, -104.77, -200.36, -298.68, -400.06, -253.97, -356.76, -218.43, -69.71, 81.08, -19.19, -119.57, -219.84, -319.72, -418.25, -517.99, -618.75, -468.52, -569.17, -417.69, -518.51, -366.87, -214.14, -312.91, -413.34, -264.78, -365.31, -463.83, -311.79, -164.89, -260.83, -112.2, -213.55, -63.78, -165.01, -13.85, -110.78, -211.19, -60.87, 90.44, -7.01, -106.43, 43.73, -54.89, -158.63, -258.66, -104.87, 44.16, -57.72, -157.53, -7.29, 140.55, 294.43, 442.82, 597.05, 750.15, 651.55, 548.75, 448.5, 348.09, 498.06, 649.49, 795.89, 698.66], "drawdown_curve": [0.0, 0.0, 0.0, 99.06, 0.0, 98.32, 200.34, 52.17, 151.13, 0.0, 99.59, 198.24, 295.51, 394.04, 494.1, 594.08, 695.2, 793.94, 644.76, 497.59, 599.66, 453.75, 549.34, 647.66, 749.04, 602.95, 705.74, 567.41, 418.69, 267.9, 368.17, 468.55, 568.82, 668.7, 767.23, 866.97, 967.73, 817.5, 918.15, 766.67, 867.49, 715.85, 563.12, 661.89, 762.32, 613.76, 714.29, 812.81, 660.77, 513.87, 609.81, 461.18, 562.53, 412.76, 513.99, 362.83, 459.76, 560.17, 409.85, 258.54, 355.99, 455.41, 305.25, 403.87, 507.61, 607.64, 453.85, 304.82, 406.7, 506.51, 356.27, 208.43, 54.55, 0.0, 0.0, 0.0, 98.6, 201.4, 301.65, 402.06, 252.09, 100.66, 0.0, 97.23], "weekday_labels": ["Mon", "Tue", "Thu", "Fri", "Sun"], "weekday_wins": [4, 8, 14, 10, 0], "weekday_losses": [9, 7, 18, 10, 3], "pnl_values": [151.19, 146.78, -99.06, 148.5, -98.32, -102.02, 148.17, -98.96, 152.7, -99.59, -98.65, -97.27, -98.53, -100.06, -99.98, -101.12, -98.74, 149.18, 147.17, -102.07, 145.91, -95.59, -98.32, -101.38, 146.09, -102.79, 138.33, 148.72, 150.79, -100.27, -100.38, -100.27, -99.88, -98.53, -99.74, -100.76, 150.23, -100.65, 151.48, -100.82, 151.64, 152.73, -98.77, -100.43, 148.56, -100.53, -98.52, 152.04, 146.9, -95.94, 148.63, -101.35, 149.77, -101.23, 151.16, -96.93, -100.41, 150.32, 151.31, -97.45, -99.42, 150.16, -98.62, -103.74, -100.03, 153.79, 149.03, -101.88, -99.81, 150.24, 147.84, 153.88, 148.39, 154.23, 153.1, -98.6, -102.8, -100.25, -100.41, 149.97, 151.43, 146.4, -97.23], "trades": [{"symbol": "NAS100", "direction": "bullish", "entry_price": 20239.0, "sl_price": 19851.32143, "tp1": 20820.51785, "score": 7, "entry_time": 1728396000, "outcome": "WIN", "pnl": 151.19}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 20874.0, "sl_price": 20330.35716, "tp1": 21689.46426, "score": 7, "entry_time": 1730937600, "outcome": "WIN", "pnl": 146.78}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 21695.75, "sl_price": 21448.10716, "tp1": 22067.21426, "score": 7, "entry_time": 1733727600, "outcome": "LOSS", "pnl": -99.06}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 21510.25, "sl_price": 21180.25, "tp1": 22005.25, "score": 8, "entry_time": 1733760000, "outcome": "WIN", "pnl": 148.5}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 21991.5, "sl_price": 21627.35569, "tp1": 22537.71646, "score": 7, "entry_time": 1734361200, "outcome": "LOSS", "pnl": -98.32}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 21264.5, "sl_price": 21902.14284, "tp1": 20308.03574, "score": 7, "entry_time": 1734566400, "outcome": "LOSS", "pnl": -102.02}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 21695.25, "sl_price": 22124.72857, "tp1": 21051.03215, "score": 9, "entry_time": 1735308000, "outcome": "WIN", "pnl": 148.17}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 21075.75, "sl_price": 21570.57143, "tp1": 20333.51785, "score": 7, "entry_time": 1735837200, "outcome": "LOSS", "pnl": -98.96}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 21549.5, "sl_price": 21956.69286, "tp1": 20938.71071, "score": 9, "entry_time": 1736262000, "outcome": "WIN", "pnl": 152.7}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 20989.0, "sl_price": 21387.35714, "tp1": 20391.46429, "score": 7, "entry_time": 1736521200, "outcome": "LOSS", "pnl": -99.59}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 21425.5, "sl_price": 20808.92856, "tp1": 22350.35716, "score": 7, "entry_time": 1736985600, "outcome": "LOSS", "pnl": -98.65}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 20886.75, "sl_price": 21494.67856, "tp1": 19974.85716, "score": 7, "entry_time": 1737972000, "outcome": "LOSS", "pnl": -97.27}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 21701.75, "sl_price": 21307.63571, "tp1": 22292.92144, "score": 7, "entry_time": 1738224000, "outcome": "LOSS", "pnl": -98.53}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 21115.0, "sl_price": 21948.85716, "tp1": 19864.21426, "score": 7, "entry_time": 1738537200, "outcome": "LOSS", "pnl": -100.06}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 21904.0, "sl_price": 21782.07857, "tp1": 22086.88214, "score": 7, "entry_time": 1738936800, "outcome": "LOSS", "pnl": -99.98}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 21722.0, "sl_price": 21946.70714, "tp1": 21384.93929, "score": 9, "entry_time": 1738940400, "outcome": "LOSS", "pnl": -101.12}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 22038.25, "sl_price": 21697.75714, "tp1": 22548.98929, "score": 7, "entry_time": 1739458800, "outcome": "LOSS", "pnl": -98.74}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 21687.5, "sl_price": 22161.07144, "tp1": 20977.14284, "score": 7, "entry_time": 1740164400, "outcome": "WIN", "pnl": 149.18}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 21018.75, "sl_price": 21485.96429, "tp1": 20317.92857, "score": 7, "entry_time": 1740668400, "outcome": "WIN", "pnl": 147.17}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 20231.75, "sl_price": 20675.53571, "tp1": 19566.07143, "score": 7, "entry_time": 1741096800, "outcome": "LOSS", "pnl": -102.07}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 20171.25, "sl_price": 20819.74286, "tp1": 19198.51071, "score": 7, "entry_time": 1741280400, "outcome": "WIN", "pnl": 145.91}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 19206.0, "sl_price": 20161.92856, "tp1": 17772.10716, "score": 7, "entry_time": 1741651200, "outcome": "LOSS", "pnl": -95.59}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 20167.5, "sl_price": 19411.21428, "tp1": 21301.92858, "score": 7, "entry_time": 1742799600, "outcome": "LOSS", "pnl": -98.32}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 19361.0, "sl_price": 20036.85716, "tp1": 18347.21426, "score": 7, "entry_time": 1743192000, "outcome": "LOSS", "pnl": -101.38}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 18995.25, "sl_price": 19806.84286, "tp1": 17777.86071, "score": 7, "entry_time": 1743638400, "outcome": "WIN", "pnl": 146.09}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 17855.75, "sl_price": 19324.21429, "tp1": 15653.05357, "score": 7, "entry_time": 1743775200, "outcome": "LOSS", "pnl": -102.79}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 19228.0, "sl_price": 16922.57144, "tp1": 22686.14284, "score": 7, "entry_time": 1744243200, "outcome": "WIN", "pnl": 138.33}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 22667.0, "sl_price": 22357.15714, "tp1": 23131.76429, "score": 7, "entry_time": 1750960800, "outcome": "WIN", "pnl": 148.72}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 23143.0, "sl_price": 22756.36429, "tp1": 23722.95356, "score": 7, "entry_time": 1752541200, "outcome": "WIN", "pnl": 150.79}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 23753.75, "sl_price": 23382.38571, "tp1": 24310.79644, "score": 7, "entry_time": 1753920000, "outcome": "LOSS", "pnl": -100.27}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 23389.5, "sl_price": 23305.85, "tp1": 23514.975, "score": 8, "entry_time": 1753981200, "outcome": "LOSS", "pnl": -100.38}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 23414.75, "sl_price": 23303.33571, "tp1": 23581.87144, "score": 10, "entry_time": 1753984800, "outcome": "LOSS", "pnl": -100.27}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 23329.5, "sl_price": 23297.89286, "tp1": 23376.91071, "score": 10, "entry_time": 1753992000, "outcome": "LOSS", "pnl": -99.88}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 23285.0, "sl_price": 23803.57144, "tp1": 22507.14284, "score": 7, "entry_time": 1753999200, "outcome": "LOSS", "pnl": -98.53}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 23736.5, "sl_price": 23623.15714, "tp1": 23906.51429, "score": 7, "entry_time": 1754928000, "outcome": "LOSS", "pnl": -99.74}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 23773.25, "sl_price": 23558.85714, "tp1": 24094.83929, "score": 7, "entry_time": 1755000000, "outcome": "LOSS", "pnl": -100.76}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 23540.75, "sl_price": 23844.25, "tp1": 23085.5, "score": 7, "entry_time": 1755612000, "outcome": "WIN", "pnl": 150.23}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 23292.25, "sl_price": 23506.39286, "tp1": 22971.03571, "score": 7, "entry_time": 1755734400, "outcome": "LOSS", "pnl": -100.65}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 23605.75, "sl_price": 23011.72143, "tp1": 24496.79285, "score": 8, "entry_time": 1755882000, "outcome": "WIN", "pnl": 151.48}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 24602.0, "sl_price": 24265.92856, "tp1": 25106.10716, "score": 7, "entry_time": 1758006000, "outcome": "LOSS", "pnl": -100.82}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 24267.25, "sl_price": 24026.55714, "tp1": 24628.28929, "score": 7, "entry_time": 1758034800, "outcome": "WIN", "pnl": 151.64}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 24638.25, "sl_price": 24175.42857, "tp1": 25332.48215, "score": 7, "entry_time": 1758164400, "outcome": "WIN", "pnl": 152.73}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 25363.0, "sl_price": 24967.92856, "tp1": 25955.60716, "score": 7, "entry_time": 1759968000, "outcome": "LOSS", "pnl": -98.77}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 24827.0, "sl_price": 25384.92856, "tp1": 23990.10716, "score": 7, "entry_time": 1760108400, "outcome": "LOSS", "pnl": -100.43}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 25377.0, "sl_price": 24881.78571, "tp1": 26119.82143, "score": 7, "entry_time": 1761296400, "outcome": "WIN", "pnl": 148.56}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 26108.5, "sl_price": 25903.32857, "tp1": 26416.25714, "score": 7, "entry_time": 1761667200, "outcome": "LOSS", "pnl": -100.53}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 26129.25, "sl_price": 25821.36429, "tp1": 26591.07856, "score": 7, "entry_time": 1762160400, "outcome": "LOSS", "pnl": -98.52}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 25821.5, "sl_price": 26243.82857, "tp1": 25188.00714, "score": 7, "entry_time": 1762232400, "outcome": "WIN", "pnl": 152.04}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 25253.0, "sl_price": 25905.87857, "tp1": 24273.68214, "score": 7, "entry_time": 1762488000, "outcome": "WIN", "pnl": 146.9}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 24278.5, "sl_price": 25344.49286, "tp1": 22679.51071, "score": 7, "entry_time": 1763661600, "outcome": "LOSS", "pnl": -95.94}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 25330.25, "sl_price": 25062.45, "tp1": 25731.95, "score": 7, "entry_time": 1764201600, "outcome": "WIN", "pnl": 148.63}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 25791.25, "sl_price": 25441.76429, "tp1": 26315.47857, "score": 7, "entry_time": 1764943200, "outcome": "LOSS", "pnl": -101.35}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 25486.5, "sl_price": 25920.62857, "tp1": 24835.30714, "score": 7, "entry_time": 1765422000, "outcome": "WIN", "pnl": 149.77}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 24877.75, "sl_price": 25473.22143, "tp1": 23984.54285, "score": 7, "entry_time": 1765868400, "outcome": "LOSS", "pnl": -101.23}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 24962.25, "sl_price": 24626.32857, "tp1": 25466.13214, "score": 9, "entry_time": 1766019600, "outcome": "WIN", "pnl": 151.16}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 25560.25, "sl_price": 24679.10716, "tp1": 26881.96426, "score": 7, "entry_time": 1766152800, "outcome": "LOSS", "pnl": -96.93}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 24769.25, "sl_price": 25225.67857, "tp1": 24084.60715, "score": 7, "entry_time": 1770300000, "outcome": "LOSS", "pnl": -100.41}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 25355.25, "sl_price": 25459.63571, "tp1": 25198.67144, "score": 6, "entry_time": 1770656400, "outcome": "WIN", "pnl": 150.32}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 25219.0, "sl_price": 25515.68571, "tp1": 24773.97143, "score": 9, "entry_time": 1770753600, "outcome": "WIN", "pnl": 151.31}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 24762.75, "sl_price": 25458.82144, "tp1": 23718.64284, "score": 8, "entry_time": 1770926400, "outcome": "LOSS", "pnl": -97.45}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 25315.75, "sl_price": 24763.39284, "tp1": 26144.28574, "score": 7, "entry_time": 1772064000, "outcome": "LOSS", "pnl": -99.42}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 24786.0, "sl_price": 24715.0, "tp1": 24892.5, "score": 6, "entry_time": 1772409600, "outcome": "WIN", "pnl": 150.16}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 24590.75, "sl_price": 25109.77857, "tp1": 23812.20715, "score": 7, "entry_time": 1772431200, "outcome": "LOSS", "pnl": -98.62}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 25208.25, "sl_price": 24410.21429, "tp1": 26405.30357, "score": 7, "entry_time": 1772668800, "outcome": "LOSS", "pnl": -103.74}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 24306.25, "sl_price": 25020.75714, "tp1": 23234.48929, "score": 7, "entry_time": 1773007200, "outcome": "LOSS", "pnl": -100.03}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 24791.25, "sl_price": 25303.87857, "tp1": 24022.30714, "score": 9, "entry_time": 1773273600, "outcome": "WIN", "pnl": 153.79}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 24113.0, "sl_price": 24775.34286, "tp1": 23119.48571, "score": 7, "entry_time": 1774033200, "outcome": "WIN", "pnl": 149.03}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 23127.5, "sl_price": 23911.21428, "tp1": 21951.92858, "score": 7, "entry_time": 1774825200, "outcome": "LOSS", "pnl": -101.88}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 24223.0, "sl_price": 24349.34286, "tp1": 24033.48571, "score": 6, "entry_time": 1775440800, "outcome": "LOSS", "pnl": -99.81}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 24370.5, "sl_price": 23893.55, "tp1": 25085.925, "score": 7, "entry_time": 1775462400, "outcome": "WIN", "pnl": 150.24}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 25050.75, "sl_price": 24065.17856, "tp1": 26529.10716, "score": 7, "entry_time": 1775602800, "outcome": "WIN", "pnl": 147.84}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 26533.25, "sl_price": 25993.32144, "tp1": 27343.14284, "score": 7, "entry_time": 1776351600, "outcome": "WIN", "pnl": 153.88}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 27275.75, "sl_price": 26946.0, "tp1": 27770.375, "score": 7, "entry_time": 1777028400, "outcome": "WIN", "pnl": 148.39}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 27873.5, "sl_price": 27082.56429, "tp1": 29059.90357, "score": 7, "entry_time": 1777640400, "outcome": "WIN", "pnl": 154.23}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 29107.25, "sl_price": 28469.34286, "tp1": 30064.11071, "score": 7, "entry_time": 1778245200, "outcome": "WIN", "pnl": 153.1}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 30054.75, "sl_price": 29233.10716, "tp1": 31287.21426, "score": 7, "entry_time": 1779804000, "outcome": "LOSS", "pnl": -98.6}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 29191.0, "sl_price": 30333.21428, "tp1": 27477.67858, "score": 7, "entry_time": 1780682400, "outcome": "LOSS", "pnl": -102.8}, {"symbol": "NAS100", "direction": "bullish", "entry_price": 30545.25, "sl_price": 29113.10716, "tp1": 32693.46426, "score": 7, "entry_time": 1781506800, "outcome": "LOSS", "pnl": -100.25}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 29503.5, "sl_price": 29670.84286, "tp1": 29252.48571, "score": 7, "entry_time": 1783555200, "outcome": "LOSS", "pnl": -100.41}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 29661.25, "sl_price": 29670.83571, "tp1": 29646.87144, "score": 6, "entry_time": 1783584000, "outcome": "WIN", "pnl": 149.97}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 29774.0, "sl_price": 30089.48571, "tp1": 29300.77143, "score": 9, "entry_time": 1783666800, "outcome": "WIN", "pnl": 151.43}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 29347.5, "sl_price": 29889.73571, "tp1": 28534.14643, "score": 7, "entry_time": 1784206800, "outcome": "WIN", "pnl": 146.4}, {"symbol": "NAS100", "direction": "bearish", "entry_price": 28676.0, "sl_price": 29756.28572, "tp1": 27055.57142, "score": 7, "entry_time": 1784293200, "outcome": "LOSS", "pnl": -97.23}]};
+document.getElementById('title').textContent = 'Backtest Report -- ' + data.symbol;
+
+const s = data.stats;
+if (s.resolved < 30) {
+  const w = document.getElementById('low-sample-warning');
+  w.style.display = 'block';
+  w.textContent = `Only ${s.resolved} resolved trades -- too few for reliable conclusions. Treat these numbers as rough until you have 50-100+ resolved trades.`;
+}
+
+const metrics = [
+  ['Win Rate', s.win_rate !== null ? s.win_rate + '%' : 'N/A', null],
+  ['Profit Factor', s.profit_factor !== null ? s.profit_factor : 'N/A', null],
+  ['Expectancy/Trade', s.expectancy_per_trade !== null ? '$' + s.expectancy_per_trade : 'N/A', s.expectancy_per_trade],
+  ['Total P&L', '$' + s.total_pnl, s.total_pnl],
+  ['Max Drawdown', '$' + s.max_drawdown, null],
+  ['Avg R:R', s.average_rr !== null ? s.average_rr : 'N/A', null],
+];
+document.getElementById('metrics').innerHTML = metrics.map(([label, value, sign]) => `
+  <div class="card">
+    <div class="card-label">${label}</div>
+    <div class="card-value ${sign !== null ? (sign >= 0 ? 'pos' : 'neg') : ''}">${value}</div>
+  </div>
+`).join('');
+
+new Chart(document.getElementById('equityChart'), {
+  type: 'line',
+  data: {
+    labels: data.equity_curve.map((_, i) => i),
+    datasets: [
+      { label: 'Equity ($)', data: data.equity_curve, borderColor: '#00d9c0', backgroundColor: 'rgba(0,217,192,0.08)', fill: true, tension: 0.3, pointRadius: 0 },
+      { label: 'Drawdown ($)', data: data.drawdown_curve, borderColor: '#ff4757', backgroundColor: 'rgba(255,71,87,0.08)', fill: true, tension: 0.3, pointRadius: 0, yAxisID: 'y1' },
+    ]
+  },
+  options: { responsive: true, plugins: { legend: { labels: { color: '#7a8699' } } },
+    scales: { x: { display: false }, y: { ticks: { color: '#7a8699' }, grid: { color: '#232733' } }, y1: { position: 'right', display: false } } }
+});
+
+new Chart(document.getElementById('weekdayChart'), {
+  type: 'bar',
+  data: { labels: data.weekday_labels, datasets: [
+    { label: 'Wins', data: data.weekday_wins, backgroundColor: '#2ed573' },
+    { label: 'Losses', data: data.weekday_losses, backgroundColor: '#ff4757' },
+  ]},
+  options: { responsive: true, plugins: { legend: { labels: { color: '#7a8699' } } },
+    scales: { x: { ticks: { color: '#7a8699' }, grid: { display: false } }, y: { ticks: { color: '#7a8699' }, grid: { color: '#232733' } } } }
+});
+
+const bucketSize = Math.max(1, Math.ceil((Math.max(...data.pnl_values, 0) - Math.min(...data.pnl_values, 0)) / 12));
+const buckets = {};
+data.pnl_values.forEach(v => {
+  const b = Math.floor(v / bucketSize) * bucketSize;
+  buckets[b] = (buckets[b] || 0) + 1;
+});
+const bucketKeys = Object.keys(buckets).map(Number).sort((a,b) => a-b);
+new Chart(document.getElementById('pnlChart'), {
+  type: 'bar',
+  data: { labels: bucketKeys.map(k => '$' + k), datasets: [{
+    label: 'Trades', data: bucketKeys.map(k => buckets[k]),
+    backgroundColor: bucketKeys.map(k => k >= 0 ? '#2ed573' : '#ff4757'),
+  }]},
+  options: { responsive: true, plugins: { legend: { display: false } },
+    scales: { x: { ticks: { color: '#7a8699' }, grid: { display: false } }, y: { ticks: { color: '#7a8699' }, grid: { color: '#232733' } } } }
+});
+
+document.getElementById('trade-rows').innerHTML = data.trades.slice().reverse().map(t => `
+  <tr>
+    <td>${t.direction.toUpperCase()}</td>
+    <td>${t.entry_price}</td>
+    <td>${t.sl_price}</td>
+    <td>${t.tp1}</td>
+    <td>${t.score}</td>
+    <td style="color:${t.outcome === 'WIN' ? '#2ed573' : '#ff4757'}">${t.outcome}</td>
+    <td style="color:${t.pnl >= 0 ? '#2ed573' : '#ff4757'}">${t.pnl >= 0 ? '+' : ''}$${t.pnl.toFixed(2)}</td>
+  </tr>
+`).join('');
+</script>
+</body>
+</html>

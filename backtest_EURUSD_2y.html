@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Khala Trading -- Backtest Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --bg: #090b10; --panel: #12151c; --border: #232733;
+    --accent: #00d9c0; --green: #2ed573; --red: #ff4757; --text-dim: #7a8699;
+  }
+  body { background: var(--bg); color: #e8eaf0; font-family: 'JetBrains Mono', monospace; margin: 0; padding: 24px; }
+  h1 { font-size: 20px; color: var(--accent); }
+  .subtitle { color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 20px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .card-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px; }
+  .card-value { font-size: 20px; font-weight: 700; }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+  .panel-title { font-size: 13px; color: var(--accent); font-weight: 600; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; color: var(--text-dim); padding: 6px; border-bottom: 1px solid var(--border); font-size: 10px; text-transform: uppercase; }
+  td { padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  .charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+  .warning { background: rgba(255,171,0,0.08); border: 1px solid #ffab00; border-radius: 8px; padding: 12px; margin-bottom: 20px; font-size: 12px; color: #ffab00; }
+</style>
+</head>
+<body>
+  <h1 id="title"></h1>
+  <div class="subtitle">Backtested against real historical data with verified zero lookahead bias. Not a guarantee of live performance.</div>
+  <div id="low-sample-warning" class="warning" style="display:none;"></div>
+
+  <div class="grid" id="metrics"></div>
+
+  <div class="charts-row">
+    <div class="panel">
+      <div class="panel-title">EQUITY CURVE & DRAWDOWN</div>
+      <canvas id="equityChart" height="100"></canvas>
+    </div>
+    <div class="panel">
+      <div class="panel-title">WIN/LOSS BY WEEKDAY</div>
+      <canvas id="weekdayChart" height="140"></canvas>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">P&amp;L DISTRIBUTION</div>
+    <canvas id="pnlChart" height="60"></canvas>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">TRADE LOG (most recent 100)</div>
+    <table>
+      <thead><tr><th>Direction</th><th>Entry</th><th>SL</th><th>TP1</th><th>Score</th><th>Outcome</th><th>P&amp;L</th></tr></thead>
+      <tbody id="trade-rows"></tbody>
+    </table>
+  </div>
+
+<script>
+const data = {"symbol": "EURUSD", "stats": {"total_signals": 71, "resolved": 70, "pending_at_end": 1, "wins": 30, "losses": 40, "win_rate": 42.9, "profit_factor": 1.12, "expectancy_per_trade": 6.94, "total_pnl": 485.88, "max_drawdown": 699.5, "average_rr": 1.5, "weekday_breakdown": {"0": {"wins": 6, "losses": 6}, "3": {"wins": 13, "losses": 21}, "4": {"wins": 5, "losses": 3}, "1": {"wins": 6, "losses": 10}}}, "equity_curve": [0.0, -99.56, 52.44, 203.43, 104.43, 3.16, -95.24, -194.6, -39.06, 114.86, 271.46, 173.46, 72.16, 219.6, 123.14, 22.49, -82.63, -183.43, -282.54, -140.16, 6.66, -88.3, -190.47, -38.79, 105.21, 236.28, 141.36, 37.77, 194.5, 94.18, 246.38, 144.3, 297.0, 198.16, 97.02, -2.86, -106.06, 45.62, 195.56, 94.56, -7.14, -107.94, 44.07, -56.27, -154.47, -255.99, -358.47, -203.49, -302.37, -402.5, -252.02, -99.7, -198.1, -298.74, -153.09, -5.76, 140.19, 34.7, 177.38, 84.26, -11.34, -113.37, -211.82, -58.06, 89.23, -10.61, 135.39, 285.87, 185.07, 332.76, 485.88], "drawdown_curve": [0.0, 99.56, 0.0, 0.0, 99.0, 200.27, 298.67, 398.03, 242.49, 88.57, 0.0, 98.0, 199.3, 51.86, 148.32, 248.97, 354.09, 454.89, 554.0, 411.62, 264.8, 359.76, 461.93, 310.25, 166.25, 35.18, 130.1, 233.69, 76.96, 177.28, 25.08, 127.16, 0.0, 98.84, 199.98, 299.86, 403.06, 251.38, 101.44, 202.44, 304.14, 404.94, 252.93, 353.27, 451.47, 552.99, 655.47, 500.49, 599.37, 699.5, 549.02, 396.7, 495.1, 595.74, 450.09, 302.76, 156.81, 262.3, 119.62, 212.74, 308.34, 410.37, 508.82, 355.06, 207.77, 307.61, 161.61, 11.13, 111.93, 0.0, 0.0], "weekday_labels": ["Mon", "Tue", "Thu", "Fri"], "weekday_wins": [6, 6, 13, 5], "weekday_losses": [6, 10, 21, 3], "pnl_values": [-99.56, 152.0, 150.99, -99.0, -101.27, -98.4, -99.36, 155.54, 153.92, 156.6, -98.0, -101.3, 147.44, -96.46, -100.65, -105.12, -100.8, -99.11, 142.38, 146.82, -94.96, -102.17, 151.68, 144.0, 131.07, -94.92, -103.59, 156.73, -100.32, 152.2, -102.08, 152.7, -98.84, -101.14, -99.88, -103.2, 151.68, 149.94, -101.0, -101.7, -100.8, 152.01, -100.34, -98.2, -101.52, -102.48, 154.98, -98.88, -100.13, 150.48, 152.32, -98.4, -100.64, 145.65, 147.33, 145.95, -105.49, 142.68, -93.12, -95.6, -102.03, -98.45, 153.76, 147.29, -99.84, 146.0, 150.48, -100.8, 147.69, 153.12], "trades": [{"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.09806, "sl_price": 1.09937, "tp1": 1.09609, "score": 7, "entry_time": 1728298800, "outcome": "LOSS", "pnl": -99.56}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.09445, "sl_price": 1.09952, "tp1": 1.08685, "score": 7, "entry_time": 1728518400, "outcome": "WIN", "pnl": 152.0}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.0866, "sl_price": 1.0914, "tp1": 1.07941, "score": 7, "entry_time": 1729123200, "outcome": "WIN", "pnl": 150.99}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.07921, "sl_price": 1.08196, "tp1": 1.0751, "score": 7, "entry_time": 1729728000, "outcome": "LOSS", "pnl": -99.0}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.08307, "sl_price": 1.0884, "tp1": 1.07508, "score": 6, "entry_time": 1729803600, "outcome": "LOSS", "pnl": -101.27}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.08826, "sl_price": 1.08334, "tp1": 1.09563, "score": 7, "entry_time": 1730376000, "outcome": "LOSS", "pnl": -98.4}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.07239, "sl_price": 1.0786, "tp1": 1.06307, "score": 7, "entry_time": 1730937600, "outcome": "LOSS", "pnl": -99.36}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.07573, "sl_price": 1.08516, "tp1": 1.06159, "score": 8, "entry_time": 1731070800, "outcome": "WIN", "pnl": 155.54}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.06202, "sl_price": 1.06844, "tp1": 1.0524, "score": 7, "entry_time": 1731405600, "outcome": "WIN", "pnl": 153.92}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.0523, "sl_price": 1.0639, "tp1": 1.0349, "score": 7, "entry_time": 1731574800, "outcome": "WIN", "pnl": 156.6}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.04112, "sl_price": 1.05512, "tp1": 1.02013, "score": 7, "entry_time": 1732266000, "outcome": "LOSS", "pnl": -98.0}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.05552, "sl_price": 1.04539, "tp1": 1.07072, "score": 7, "entry_time": 1732752000, "outcome": "LOSS", "pnl": -101.3}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.03767, "sl_price": 1.04995, "tp1": 1.01924, "score": 7, "entry_time": 1734566400, "outcome": "WIN", "pnl": 147.44}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.01958, "sl_price": 1.027, "tp1": 1.00844, "score": 7, "entry_time": 1736758800, "outcome": "LOSS", "pnl": -96.46}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.03018, "sl_price": 1.03689, "tp1": 1.02013, "score": 8, "entry_time": 1736985600, "outcome": "LOSS", "pnl": -100.65}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.04004, "sl_price": 1.02836, "tp1": 1.05756, "score": 7, "entry_time": 1737378000, "outcome": "LOSS", "pnl": -105.12}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.02312, "sl_price": 1.03992, "tp1": 0.99793, "score": 7, "entry_time": 1738540800, "outcome": "LOSS", "pnl": -100.8}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.0367, "sl_price": 1.04571, "tp1": 1.02318, "score": 9, "entry_time": 1738828800, "outcome": "LOSS", "pnl": -99.11}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.04646, "sl_price": 1.03592, "tp1": 1.06228, "score": 7, "entry_time": 1739476800, "outcome": "WIN", "pnl": 142.38}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.06135, "sl_price": 1.04503, "tp1": 1.08582, "score": 7, "entry_time": 1741118400, "outcome": "WIN", "pnl": 146.82}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.08648, "sl_price": 1.07461, "tp1": 1.1043, "score": 7, "entry_time": 1741338000, "outcome": "LOSS", "pnl": -94.96}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.07585, "sl_price": 1.08186, "tp1": 1.06683, "score": 7, "entry_time": 1743033600, "outcome": "LOSS", "pnl": -102.17}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.0826, "sl_price": 1.07418, "tp1": 1.09524, "score": 7, "entry_time": 1743170400, "outcome": "WIN", "pnl": 151.68}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.09469, "sl_price": 1.07869, "tp1": 1.11869, "score": 7, "entry_time": 1743656400, "outcome": "WIN", "pnl": 144.0}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.11944, "sl_price": 1.09032, "tp1": 1.16313, "score": 7, "entry_time": 1744297200, "outcome": "WIN", "pnl": 131.07}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.16144, "sl_price": 1.14788, "tp1": 1.18178, "score": 7, "entry_time": 1749729600, "outcome": "LOSS", "pnl": -94.92}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.14824, "sl_price": 1.15975, "tp1": 1.13097, "score": 7, "entry_time": 1750183200, "outcome": "LOSS", "pnl": -103.59}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.15955, "sl_price": 1.14463, "tp1": 1.18194, "score": 7, "entry_time": 1750716000, "outcome": "WIN", "pnl": 156.73}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.18175, "sl_price": 1.16921, "tp1": 1.20057, "score": 7, "entry_time": 1751360400, "outcome": "LOSS", "pnl": -100.32}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.17069, "sl_price": 1.18083, "tp1": 1.15547, "score": 7, "entry_time": 1751907600, "outcome": "WIN", "pnl": 152.2}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.15393, "sl_price": 1.16669, "tp1": 1.1348, "score": 7, "entry_time": 1753768800, "outcome": "LOSS", "pnl": -102.08}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.1655, "sl_price": 1.15532, "tp1": 1.18077, "score": 7, "entry_time": 1754524800, "outcome": "WIN", "pnl": 152.7}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.18175, "sl_price": 1.17469, "tp1": 1.19235, "score": 7, "entry_time": 1758013200, "outcome": "LOSS", "pnl": -98.84}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.17398, "sl_price": 1.18176, "tp1": 1.16232, "score": 7, "entry_time": 1758279600, "outcome": "LOSS", "pnl": -101.14}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.18189, "sl_price": 1.17281, "tp1": 1.19552, "score": 9, "entry_time": 1758589200, "outcome": "LOSS", "pnl": -99.88}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.17027, "sl_price": 1.17715, "tp1": 1.15996, "score": 7, "entry_time": 1758801600, "outcome": "LOSS", "pnl": -103.2}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.1733, "sl_price": 1.17961, "tp1": 1.16382, "score": 9, "entry_time": 1759363200, "outcome": "WIN", "pnl": 151.68}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.16414, "sl_price": 1.16611, "tp1": 1.1612, "score": 7, "entry_time": 1759968000, "outcome": "WIN", "pnl": 149.94}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.16144, "sl_price": 1.16649, "tp1": 1.15387, "score": 7, "entry_time": 1759993200, "outcome": "LOSS", "pnl": -101.0}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.16673, "sl_price": 1.15995, "tp1": 1.17689, "score": 7, "entry_time": 1760572800, "outcome": "LOSS", "pnl": -101.7}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.16077, "sl_price": 1.15909, "tp1": 1.16328, "score": 6, "entry_time": 1761080400, "outcome": "LOSS", "pnl": -100.8}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.16077, "sl_price": 1.15701, "tp1": 1.1664, "score": 8, "entry_time": 1761177600, "outcome": "WIN", "pnl": 152.01}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.16604, "sl_price": 1.16258, "tp1": 1.17124, "score": 7, "entry_time": 1761613200, "outcome": "LOSS", "pnl": -100.34}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.1558, "sl_price": 1.16562, "tp1": 1.14108, "score": 7, "entry_time": 1761825600, "outcome": "LOSS", "pnl": -98.2}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.1655, "sl_price": 1.15704, "tp1": 1.17819, "score": 7, "entry_time": 1763053200, "outcome": "LOSS", "pnl": -101.52}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.1538, "sl_price": 1.16112, "tp1": 1.14282, "score": 7, "entry_time": 1763596800, "outcome": "LOSS", "pnl": -102.48}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.16117, "sl_price": 1.15379, "tp1": 1.17224, "score": 7, "entry_time": 1764205200, "outcome": "WIN", "pnl": 154.98}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.17343, "sl_price": 1.16725, "tp1": 1.18271, "score": 7, "entry_time": 1765458000, "outcome": "LOSS", "pnl": -98.88}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.16781, "sl_price": 1.17104, "tp1": 1.16298, "score": 7, "entry_time": 1767618000, "outcome": "LOSS", "pnl": -100.13}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.17316, "sl_price": 1.17455, "tp1": 1.17107, "score": 6, "entry_time": 1767682800, "outcome": "WIN", "pnl": 150.48}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.17096, "sl_price": 1.17459, "tp1": 1.16552, "score": 8, "entry_time": 1767697200, "outcome": "WIN", "pnl": 152.32}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.1655, "sl_price": 1.1696, "tp1": 1.15935, "score": 7, "entry_time": 1767891600, "outcome": "LOSS", "pnl": -98.4}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.1632, "sl_price": 1.16616, "tp1": 1.15875, "score": 7, "entry_time": 1768460400, "outcome": "LOSS", "pnl": -100.64}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.16686, "sl_price": 1.16039, "tp1": 1.17657, "score": 7, "entry_time": 1768881600, "outcome": "WIN", "pnl": 145.65}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.17385, "sl_price": 1.16293, "tp1": 1.19022, "score": 7, "entry_time": 1768914000, "outcome": "WIN", "pnl": 147.33}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.18892, "sl_price": 1.18243, "tp1": 1.19865, "score": 7, "entry_time": 1769443200, "outcome": "WIN", "pnl": 145.95}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.19832, "sl_price": 1.18325, "tp1": 1.22093, "score": 7, "entry_time": 1769529600, "outcome": "LOSS", "pnl": -105.49}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.18245, "sl_price": 1.19831, "tp1": 1.15867, "score": 7, "entry_time": 1770037200, "outcome": "WIN", "pnl": 142.68}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.15996, "sl_price": 1.17548, "tp1": 1.13668, "score": 7, "entry_time": 1772535600, "outcome": "LOSS", "pnl": -93.12}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.17647, "sl_price": 1.16691, "tp1": 1.19081, "score": 7, "entry_time": 1776103200, "outcome": "LOSS", "pnl": -95.6}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.16822, "sl_price": 1.17359, "tp1": 1.16018, "score": 7, "entry_time": 1777507200, "outcome": "LOSS", "pnl": -102.03}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.17343, "sl_price": 1.16448, "tp1": 1.18686, "score": 7, "entry_time": 1777557600, "outcome": "LOSS", "pnl": -98.45}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.16374, "sl_price": 1.17014, "tp1": 1.15413, "score": 7, "entry_time": 1778821200, "outcome": "WIN", "pnl": 153.76}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.15354, "sl_price": 1.16246, "tp1": 1.14015, "score": 7, "entry_time": 1780671600, "outcome": "WIN", "pnl": 147.29}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.14038, "sl_price": 1.1487, "tp1": 1.1279, "score": 7, "entry_time": 1782208800, "outcome": "LOSS", "pnl": -99.84}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.14613, "sl_price": 1.1364, "tp1": 1.16073, "score": 7, "entry_time": 1785369600, "outcome": "WIN", "pnl": 146.0}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.1609, "sl_price": 1.15562, "tp1": 1.16882, "score": 7, "entry_time": 1786950000, "outcome": "WIN", "pnl": 150.48}, {"symbol": "EURUSD", "direction": "bullish", "entry_price": 1.16918, "sl_price": 1.16638, "tp1": 1.17338, "score": 7, "entry_time": 1787205600, "outcome": "LOSS", "pnl": -100.8}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.16632, "sl_price": 1.16996, "tp1": 1.16085, "score": 7, "entry_time": 1787590800, "outcome": "WIN", "pnl": 147.69}, {"symbol": "EURUSD", "direction": "bearish", "entry_price": 1.16252, "sl_price": 1.16716, "tp1": 1.15556, "score": 7, "entry_time": 1787925600, "outcome": "WIN", "pnl": 153.12}]};
+document.getElementById('title').textContent = 'Backtest Report -- ' + data.symbol;
+
+const s = data.stats;
+if (s.resolved < 30) {
+  const w = document.getElementById('low-sample-warning');
+  w.style.display = 'block';
+  w.textContent = `Only ${s.resolved} resolved trades -- too few for reliable conclusions. Treat these numbers as rough until you have 50-100+ resolved trades.`;
+}
+
+const metrics = [
+  ['Win Rate', s.win_rate !== null ? s.win_rate + '%' : 'N/A', null],
+  ['Profit Factor', s.profit_factor !== null ? s.profit_factor : 'N/A', null],
+  ['Expectancy/Trade', s.expectancy_per_trade !== null ? '$' + s.expectancy_per_trade : 'N/A', s.expectancy_per_trade],
+  ['Total P&L', '$' + s.total_pnl, s.total_pnl],
+  ['Max Drawdown', '$' + s.max_drawdown, null],
+  ['Avg R:R', s.average_rr !== null ? s.average_rr : 'N/A', null],
+];
+document.getElementById('metrics').innerHTML = metrics.map(([label, value, sign]) => `
+  <div class="card">
+    <div class="card-label">${label}</div>
+    <div class="card-value ${sign !== null ? (sign >= 0 ? 'pos' : 'neg') : ''}">${value}</div>
+  </div>
+`).join('');
+
+new Chart(document.getElementById('equityChart'), {
+  type: 'line',
+  data: {
+    labels: data.equity_curve.map((_, i) => i),
+    datasets: [
+      { label: 'Equity ($)', data: data.equity_curve, borderColor: '#00d9c0', backgroundColor: 'rgba(0,217,192,0.08)', fill: true, tension: 0.3, pointRadius: 0 },
+      { label: 'Drawdown ($)', data: data.drawdown_curve, borderColor: '#ff4757', backgroundColor: 'rgba(255,71,87,0.08)', fill: true, tension: 0.3, pointRadius: 0, yAxisID: 'y1' },
+    ]
+  },
+  options: { responsive: true, plugins: { legend: { labels: { color: '#7a8699' } } },
+    scales: { x: { display: false }, y: { ticks: { color: '#7a8699' }, grid: { color: '#232733' } }, y1: { position: 'right', display: false } } }
+});
+
+new Chart(document.getElementById('weekdayChart'), {
+  type: 'bar',
+  data: { labels: data.weekday_labels, datasets: [
+    { label: 'Wins', data: data.weekday_wins, backgroundColor: '#2ed573' },
+    { label: 'Losses', data: data.weekday_losses, backgroundColor: '#ff4757' },
+  ]},
+  options: { responsive: true, plugins: { legend: { labels: { color: '#7a8699' } } },
+    scales: { x: { ticks: { color: '#7a8699' }, grid: { display: false } }, y: { ticks: { color: '#7a8699' }, grid: { color: '#232733' } } } }
+});
+
+const bucketSize = Math.max(1, Math.ceil((Math.max(...data.pnl_values, 0) - Math.min(...data.pnl_values, 0)) / 12));
+const buckets = {};
+data.pnl_values.forEach(v => {
+  const b = Math.floor(v / bucketSize) * bucketSize;
+  buckets[b] = (buckets[b] || 0) + 1;
+});
+const bucketKeys = Object.keys(buckets).map(Number).sort((a,b) => a-b);
+new Chart(document.getElementById('pnlChart'), {
+  type: 'bar',
+  data: { labels: bucketKeys.map(k => '$' + k), datasets: [{
+    label: 'Trades', data: bucketKeys.map(k => buckets[k]),
+    backgroundColor: bucketKeys.map(k => k >= 0 ? '#2ed573' : '#ff4757'),
+  }]},
+  options: { responsive: true, plugins: { legend: { display: false } },
+    scales: { x: { ticks: { color: '#7a8699' }, grid: { display: false } }, y: { ticks: { color: '#7a8699' }, grid: { color: '#232733' } } } }
+});
+
+document.getElementById('trade-rows').innerHTML = data.trades.slice().reverse().map(t => `
+  <tr>
+    <td>${t.direction.toUpperCase()}</td>
+    <td>${t.entry_price}</td>
+    <td>${t.sl_price}</td>
+    <td>${t.tp1}</td>
+    <td>${t.score}</td>
+    <td style="color:${t.outcome === 'WIN' ? '#2ed573' : '#ff4757'}">${t.outcome}</td>
+    <td style="color:${t.pnl >= 0 ? '#2ed573' : '#ff4757'}">${t.pnl >= 0 ? '+' : ''}$${t.pnl.toFixed(2)}</td>
+  </tr>
+`).join('');
+</script>
+</body>
+</html>

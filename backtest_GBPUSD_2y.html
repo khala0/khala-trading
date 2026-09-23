@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Khala Trading -- Backtest Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --bg: #090b10; --panel: #12151c; --border: #232733;
+    --accent: #00d9c0; --green: #2ed573; --red: #ff4757; --text-dim: #7a8699;
+  }
+  body { background: var(--bg); color: #e8eaf0; font-family: 'JetBrains Mono', monospace; margin: 0; padding: 24px; }
+  h1 { font-size: 20px; color: var(--accent); }
+  .subtitle { color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 20px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .card-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px; }
+  .card-value { font-size: 20px; font-weight: 700; }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+  .panel-title { font-size: 13px; color: var(--accent); font-weight: 600; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; color: var(--text-dim); padding: 6px; border-bottom: 1px solid var(--border); font-size: 10px; text-transform: uppercase; }
+  td { padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  .charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+  .warning { background: rgba(255,171,0,0.08); border: 1px solid #ffab00; border-radius: 8px; padding: 12px; margin-bottom: 20px; font-size: 12px; color: #ffab00; }
+</style>
+</head>
+<body>
+  <h1 id="title"></h1>
+  <div class="subtitle">Backtested against real historical data with verified zero lookahead bias. Not a guarantee of live performance.</div>
+  <div id="low-sample-warning" class="warning" style="display:none;"></div>
+
+  <div class="grid" id="metrics"></div>
+
+  <div class="charts-row">
+    <div class="panel">
+      <div class="panel-title">EQUITY CURVE & DRAWDOWN</div>
+      <canvas id="equityChart" height="100"></canvas>
+    </div>
+    <div class="panel">
+      <div class="panel-title">WIN/LOSS BY WEEKDAY</div>
+      <canvas id="weekdayChart" height="140"></canvas>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">P&amp;L DISTRIBUTION</div>
+    <canvas id="pnlChart" height="60"></canvas>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">TRADE LOG (most recent 100)</div>
+    <table>
+      <thead><tr><th>Direction</th><th>Entry</th><th>SL</th><th>TP1</th><th>Score</th><th>Outcome</th><th>P&amp;L</th></tr></thead>
+      <tbody id="trade-rows"></tbody>
+    </table>
+  </div>
+
+<script>
+const data = {"symbol": "GBPUSD", "stats": {"total_signals": 77, "resolved": 76, "pending_at_end": 1, "wins": 29, "losses": 47, "win_rate": 38.2, "profit_factor": 0.92, "expectancy_per_trade": -4.81, "total_pnl": -365.74, "max_drawdown": 1530.81, "average_rr": 1.5, "weekday_breakdown": {"0": {"wins": 5, "losses": 6}, "1": {"wins": 9, "losses": 9}, "4": {"wins": 5, "losses": 12}, "3": {"wins": 10, "losses": 19}, "6": {"wins": 0, "losses": 1}}}, "equity_curve": [0.0, 145.73, 302.04, 449.26, 591.02, 487.22, 385.78, 533.62, 431.7, 335.7, 234.66, 133.96, 34.0, -61.52, -164.92, -22.72, 120.11, 277.71, 179.28, 75.22, -19.14, -123.14, 41.98, -61.7, -166.6, -267.04, -368.32, -469.72, -569.26, -419.99, -526.55, -381.11, -485.91, -335.46, -439.86, -538.74, -641.54, -739.78, -838.98, -939.79, -790.45, -637.36, -732.4, -587.74, -684.62, -787.45, -884.56, -731.66, -578.46, -678.9, -777.24, -872.64, -722.94, -565.86, -669.54, -770.34, -615.51, -465.03, -564.75, -410.19, -513.15, -611.71, -454.35, -548.15, -647.03, -750.55, -606.42, -708.18, -807.0, -910.51, -758.77, -855.09, -710.68, -562.63, -662.42, -514.24, -365.74], "drawdown_curve": [0.0, 0.0, 0.0, 0.0, 0.0, 103.8, 205.24, 57.4, 159.32, 255.32, 356.36, 457.06, 557.02, 652.54, 755.94, 613.74, 470.91, 313.31, 411.74, 515.8, 610.16, 714.16, 549.04, 652.72, 757.62, 858.06, 959.34, 1060.74, 1160.28, 1011.01, 1117.57, 972.13, 1076.93, 926.48, 1030.88, 1129.76, 1232.56, 1330.8, 1430.0, 1530.81, 1381.47, 1228.38, 1323.42, 1178.76, 1275.64, 1378.47, 1475.58, 1322.68, 1169.48, 1269.92, 1368.26, 1463.66, 1313.96, 1156.88, 1260.56, 1361.36, 1206.53, 1056.05, 1155.77, 1001.21, 1104.17, 1202.73, 1045.37, 1139.17, 1238.05, 1341.57, 1197.44, 1299.2, 1398.02, 1501.53, 1349.79, 1446.11, 1301.7, 1153.65, 1253.44, 1105.26, 956.76], "weekday_labels": ["Mon", "Tue", "Thu", "Fri", "Sun"], "weekday_wins": [5, 9, 10, 5, 0], "weekday_losses": [6, 9, 19, 12, 1], "pnl_values": [145.73, 156.31, 147.22, 141.76, -103.8, -101.44, 147.84, -101.92, -96.0, -101.04, -100.7, -99.96, -95.52, -103.4, 142.2, 142.83, 157.6, -98.43, -104.06, -94.36, -104.0, 165.12, -103.68, -104.9, -100.44, -101.28, -101.4, -99.54, 149.27, -106.56, 145.44, -104.8, 150.45, -104.4, -98.88, -102.8, -98.24, -99.2, -100.81, 149.34, 153.09, -95.04, 144.66, -96.88, -102.83, -97.11, 152.9, 153.2, -100.44, -98.34, -95.4, 149.7, 157.08, -103.68, -100.8, 154.83, 150.48, -99.72, 154.56, -102.96, -98.56, 157.36, -93.8, -98.88, -103.52, 144.13, -101.76, -98.82, -103.51, 151.74, -96.32, 144.41, 148.05, -99.79, 148.18, 148.5], "trades": [{"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.30823, "sl_price": 1.31571, "tp1": 1.29702, "score": 7, "entry_time": 1728298800, "outcome": "WIN", "pnl": 145.73}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.29767, "sl_price": 1.30715, "tp1": 1.28346, "score": 7, "entry_time": 1729591200, "outcome": "WIN", "pnl": 156.31}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.28333, "sl_price": 1.28911, "tp1": 1.27467, "score": 7, "entry_time": 1731387600, "outcome": "WIN", "pnl": 147.22}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.27338, "sl_price": 1.2852, "tp1": 1.25566, "score": 7, "entry_time": 1731427200, "outcome": "WIN", "pnl": 141.76}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.25732, "sl_price": 1.2677, "tp1": 1.24176, "score": 7, "entry_time": 1732258800, "outcome": "LOSS", "pnl": -103.8}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.26715, "sl_price": 1.25447, "tp1": 1.28618, "score": 7, "entry_time": 1732752000, "outcome": "LOSS", "pnl": -101.44}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.25288, "sl_price": 1.26931, "tp1": 1.22824, "score": 7, "entry_time": 1734624000, "outcome": "WIN", "pnl": 147.84}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.22564, "sl_price": 1.2402, "tp1": 1.2038, "score": 7, "entry_time": 1736406000, "outcome": "LOSS", "pnl": -101.92}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.23953, "sl_price": 1.22753, "tp1": 1.25752, "score": 7, "entry_time": 1737687600, "outcome": "LOSS", "pnl": -96.0}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.22737, "sl_price": 1.24421, "tp1": 1.20211, "score": 7, "entry_time": 1738540800, "outcome": "LOSS", "pnl": -101.04}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.24511, "sl_price": 1.25041, "tp1": 1.23717, "score": 8, "entry_time": 1738616400, "outcome": "LOSS", "pnl": -100.7}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.2503, "sl_price": 1.24442, "tp1": 1.25911, "score": 6, "entry_time": 1738800000, "outcome": "LOSS", "pnl": -99.96}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.24667, "sl_price": 1.23473, "tp1": 1.26457, "score": 8, "entry_time": 1738915200, "outcome": "LOSS", "pnl": -95.52}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.23467, "sl_price": 1.24407, "tp1": 1.22058, "score": 7, "entry_time": 1739239200, "outcome": "LOSS", "pnl": -103.4}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.24626, "sl_price": 1.23573, "tp1": 1.26206, "score": 7, "entry_time": 1739412000, "outcome": "WIN", "pnl": 142.2}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.26269, "sl_price": 1.25211, "tp1": 1.27856, "score": 7, "entry_time": 1739541600, "outcome": "WIN", "pnl": 142.83}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.27887, "sl_price": 1.26574, "tp1": 1.29857, "score": 7, "entry_time": 1741114800, "outcome": "WIN", "pnl": 157.6}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.29671, "sl_price": 1.29092, "tp1": 1.30541, "score": 7, "entry_time": 1741824000, "outcome": "LOSS", "pnl": -98.43}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.28976, "sl_price": 1.29922, "tp1": 1.27556, "score": 7, "entry_time": 1742569200, "outcome": "LOSS", "pnl": -104.06}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.30415, "sl_price": 1.29067, "tp1": 1.32438, "score": 7, "entry_time": 1743638400, "outcome": "LOSS", "pnl": -94.36}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.28743, "sl_price": 1.31343, "tp1": 1.24844, "score": 7, "entry_time": 1743793200, "outcome": "LOSS", "pnl": -104.0}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.31244, "sl_price": 1.28492, "tp1": 1.35372, "score": 7, "entry_time": 1744362000, "outcome": "WIN", "pnl": 165.12}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.35285, "sl_price": 1.33989, "tp1": 1.37229, "score": 7, "entry_time": 1748019600, "outcome": "LOSS", "pnl": -103.68}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.33942, "sl_price": 1.34991, "tp1": 1.32369, "score": 7, "entry_time": 1750294800, "outcome": "LOSS", "pnl": -104.9}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.34472, "sl_price": 1.35309, "tp1": 1.33216, "score": 7, "entry_time": 1750446000, "outcome": "LOSS", "pnl": -100.44}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.35389, "sl_price": 1.33701, "tp1": 1.37922, "score": 7, "entry_time": 1750716000, "outcome": "LOSS", "pnl": -101.28}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.34313, "sl_price": 1.34989, "tp1": 1.33299, "score": 6, "entry_time": 1752793200, "outcome": "LOSS", "pnl": -101.4}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.34966, "sl_price": 1.3386, "tp1": 1.36624, "score": 7, "entry_time": 1753110000, "outcome": "LOSS", "pnl": -99.54}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.33797, "sl_price": 1.34702, "tp1": 1.3244, "score": 7, "entry_time": 1753718400, "outcome": "WIN", "pnl": 149.27}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.32514, "sl_price": 1.33846, "tp1": 1.30515, "score": 7, "entry_time": 1753920000, "outcome": "LOSS", "pnl": -106.56}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.34135, "sl_price": 1.33326, "tp1": 1.35347, "score": 7, "entry_time": 1754564400, "outcome": "WIN", "pnl": 145.44}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.35862, "sl_price": 1.34814, "tp1": 1.37434, "score": 7, "entry_time": 1755129600, "outcome": "LOSS", "pnl": -104.8}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.34849, "sl_price": 1.35439, "tp1": 1.33964, "score": 7, "entry_time": 1755626400, "outcome": "WIN", "pnl": 150.45}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.33935, "sl_price": 1.34979, "tp1": 1.32369, "score": 7, "entry_time": 1755835200, "outcome": "LOSS", "pnl": -104.4}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.34791, "sl_price": 1.35409, "tp1": 1.33864, "score": 9, "entry_time": 1756141200, "outcome": "LOSS", "pnl": -98.88}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.35375, "sl_price": 1.34347, "tp1": 1.36916, "score": 7, "entry_time": 1756731600, "outcome": "LOSS", "pnl": -102.8}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.34012, "sl_price": 1.3524, "tp1": 1.32171, "score": 7, "entry_time": 1756796400, "outcome": "LOSS", "pnl": -98.24}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.35591, "sl_price": 1.35095, "tp1": 1.36336, "score": 7, "entry_time": 1757376000, "outcome": "LOSS", "pnl": -99.2}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.35152, "sl_price": 1.35745, "tp1": 1.34261, "score": 7, "entry_time": 1757577600, "outcome": "LOSS", "pnl": -100.81}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.35792, "sl_price": 1.35967, "tp1": 1.3553, "score": 9, "entry_time": 1757628000, "outcome": "WIN", "pnl": 149.34}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.35829, "sl_price": 1.35343, "tp1": 1.36558, "score": 7, "entry_time": 1757919600, "outcome": "WIN", "pnl": 153.09}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.3658, "sl_price": 1.35524, "tp1": 1.38165, "score": 7, "entry_time": 1758027600, "outcome": "LOSS", "pnl": -95.04}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.35089, "sl_price": 1.36697, "tp1": 1.32678, "score": 7, "entry_time": 1758261600, "outcome": "WIN", "pnl": 144.66}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.32668, "sl_price": 1.3336, "tp1": 1.31631, "score": 7, "entry_time": 1760090400, "outcome": "LOSS", "pnl": -96.88}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.32806, "sl_price": 1.33597, "tp1": 1.31619, "score": 7, "entry_time": 1760421600, "outcome": "LOSS", "pnl": -102.83}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.34234, "sl_price": 1.33155, "tp1": 1.35851, "score": 7, "entry_time": 1760572800, "outcome": "LOSS", "pnl": -97.11}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.3346, "sl_price": 1.33923, "tp1": 1.32765, "score": 7, "entry_time": 1761177600, "outcome": "WIN", "pnl": 152.9}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.326, "sl_price": 1.33876, "tp1": 1.30685, "score": 7, "entry_time": 1761656400, "outcome": "WIN", "pnl": 153.2}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.30632, "sl_price": 1.31748, "tp1": 1.28958, "score": 7, "entry_time": 1762246800, "outcome": "LOSS", "pnl": -100.44}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.31686, "sl_price": 1.30792, "tp1": 1.33028, "score": 7, "entry_time": 1762538400, "outcome": "LOSS", "pnl": -98.34}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.30553, "sl_price": 1.31613, "tp1": 1.28964, "score": 7, "entry_time": 1763596800, "outcome": "LOSS", "pnl": -95.4}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.31794, "sl_price": 1.30796, "tp1": 1.33291, "score": 7, "entry_time": 1764079200, "outcome": "WIN", "pnl": 149.7}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.33394, "sl_price": 1.32442, "tp1": 1.34822, "score": 6, "entry_time": 1764806400, "outcome": "WIN", "pnl": 157.08}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.34776, "sl_price": 1.33912, "tp1": 1.36073, "score": 7, "entry_time": 1766451600, "outcome": "LOSS", "pnl": -103.68}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.33702, "sl_price": 1.3471, "tp1": 1.32191, "score": 7, "entry_time": 1768482000, "outcome": "LOSS", "pnl": -100.8}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.34758, "sl_price": 1.33964, "tp1": 1.35949, "score": 7, "entry_time": 1768892400, "outcome": "WIN", "pnl": 154.83}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.3589, "sl_price": 1.34636, "tp1": 1.37771, "score": 7, "entry_time": 1769184000, "outcome": "WIN", "pnl": 150.48}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.37521, "sl_price": 1.36413, "tp1": 1.39184, "score": 7, "entry_time": 1769526000, "outcome": "LOSS", "pnl": -99.72}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.36683, "sl_price": 1.38155, "tp1": 1.34475, "score": 7, "entry_time": 1770040800, "outcome": "WIN", "pnl": 154.56}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.34423, "sl_price": 1.35359, "tp1": 1.33019, "score": 7, "entry_time": 1771509600, "outcome": "LOSS", "pnl": -102.96}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.35634, "sl_price": 1.34738, "tp1": 1.36977, "score": 7, "entry_time": 1772064000, "outcome": "LOSS", "pnl": -98.56}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.34504, "sl_price": 1.35816, "tp1": 1.32537, "score": 7, "entry_time": 1772125200, "outcome": "WIN", "pnl": 157.36}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.32535, "sl_price": 1.33875, "tp1": 1.30524, "score": 7, "entry_time": 1773399600, "outcome": "LOSS", "pnl": -93.8}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.34037, "sl_price": 1.32389, "tp1": 1.36509, "score": 7, "entry_time": 1773939600, "outcome": "LOSS", "pnl": -98.88}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.32371, "sl_price": 1.33665, "tp1": 1.30429, "score": 7, "entry_time": 1774825200, "outcome": "LOSS", "pnl": -103.52}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.33705, "sl_price": 1.32333, "tp1": 1.35764, "score": 7, "entry_time": 1775599200, "outcome": "WIN", "pnl": 144.13}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.3577, "sl_price": 1.34498, "tp1": 1.37679, "score": 7, "entry_time": 1776164400, "outcome": "LOSS", "pnl": -101.76}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.34731, "sl_price": 1.3528, "tp1": 1.33906, "score": 7, "entry_time": 1776967200, "outcome": "LOSS", "pnl": -98.82}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.35281, "sl_price": 1.3434, "tp1": 1.36693, "score": 7, "entry_time": 1777053600, "outcome": "LOSS", "pnl": -103.51}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.34104, "sl_price": 1.35228, "tp1": 1.32418, "score": 7, "entry_time": 1778778000, "outcome": "WIN", "pnl": 151.74}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.32417, "sl_price": 1.33793, "tp1": 1.30353, "score": 7, "entry_time": 1781773200, "outcome": "LOSS", "pnl": -96.32}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.33624, "sl_price": 1.32248, "tp1": 1.35687, "score": 7, "entry_time": 1782993600, "outcome": "WIN", "pnl": 144.41}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.3563, "sl_price": 1.3516, "tp1": 1.36335, "score": 7, "entry_time": 1786950000, "outcome": "WIN", "pnl": 148.05}, {"symbol": "GBPUSD", "direction": "bullish", "entry_price": 1.36361, "sl_price": 1.35774, "tp1": 1.3724, "score": 7, "entry_time": 1787212800, "outcome": "LOSS", "pnl": -99.79}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.35763, "sl_price": 1.36081, "tp1": 1.35285, "score": 7, "entry_time": 1787821200, "outcome": "WIN", "pnl": 148.18}, {"symbol": "GBPUSD", "direction": "bearish", "entry_price": 1.35298, "sl_price": 1.35958, "tp1": 1.34308, "score": 7, "entry_time": 1787936400, "outcome": "WIN", "pnl": 148.5}]};
+document.getElementById('title').textContent = 'Backtest Report -- ' + data.symbol;
+
+const s = data.stats;
+if (s.resolved < 30) {
+  const w = document.getElementById('low-sample-warning');
+  w.style.display = 'block';
+  w.textContent = `Only ${s.resolved} resolved trades -- too few for reliable conclusions. Treat these numbers as rough until you have 50-100+ resolved trades.`;
+}
+
+const metrics = [
+  ['Win Rate', s.win_rate !== null ? s.win_rate + '%' : 'N/A', null],
+  ['Profit Factor', s.profit_factor !== null ? s.profit_factor : 'N/A', null],
+  ['Expectancy/Trade', s.expectancy_per_trade !== null ? '$' + s.expectancy_per_trade : 'N/A', s.expectancy_per_trade],
+  ['Total P&L', '$' + s.total_pnl, s.total_pnl],
+  ['Max Drawdown', '$' + s.max_drawdown, null],
+  ['Avg R:R', s.average_rr !== null ? s.average_rr : 'N/A', null],
+];
+document.getElementById('metrics').innerHTML = metrics.map(([label, value, sign]) => `
+  <div class="card">
+    <div class="card-label">${label}</div>
+    <div class="card-value ${sign !== null ? (sign >= 0 ? 'pos' : 'neg') : ''}">${value}</div>
+  </div>
+`).join('');
+
+new Chart(document.getElementById('equityChart'), {
+  type: 'line',
+  data: {
+    labels: data.equity_curve.map((_, i) => i),
+    datasets: [
+      { label: 'Equity ($)', data: data.equity_curve, borderColor: '#00d9c0', backgroundColor: 'rgba(0,217,192,0.08)', fill: true, tension: 0.3, pointRadius: 0 },
+      { label: 'Drawdown ($)', data: data.drawdown_curve, borderColor: '#ff4757', backgroundColor: 'rgba(255,71,87,0.08)', fill: true, tension: 0.3, pointRadius: 0, yAxisID: 'y1' },
+    ]
+  },
+  options: { responsive: true, plugins: { legend: { labels: { color: '#7a8699' } } },
+    scales: { x: { display: false }, y: { ticks: { color: '#7a8699' }, grid: { color: '#232733' } }, y1: { position: 'right', display: false } } }
+});
+
+new Chart(document.getElementById('weekdayChart'), {
+  type: 'bar',
+  data: { labels: data.weekday_labels, datasets: [
+    { label: 'Wins', data: data.weekday_wins, backgroundColor: '#2ed573' },
+    { label: 'Losses', data: data.weekday_losses, backgroundColor: '#ff4757' },
+  ]},
+  options: { responsive: true, plugins: { legend: { labels: { color: '#7a8699' } } },
+    scales: { x: { ticks: { color: '#7a8699' }, grid: { display: false } }, y: { ticks: { color: '#7a8699' }, grid: { color: '#232733' } } } }
+});
+
+const bucketSize = Math.max(1, Math.ceil((Math.max(...data.pnl_values, 0) - Math.min(...data.pnl_values, 0)) / 12));
+const buckets = {};
+data.pnl_values.forEach(v => {
+  const b = Math.floor(v / bucketSize) * bucketSize;
+  buckets[b] = (buckets[b] || 0) + 1;
+});
+const bucketKeys = Object.keys(buckets).map(Number).sort((a,b) => a-b);
+new Chart(document.getElementById('pnlChart'), {
+  type: 'bar',
+  data: { labels: bucketKeys.map(k => '$' + k), datasets: [{
+    label: 'Trades', data: bucketKeys.map(k => buckets[k]),
+    backgroundColor: bucketKeys.map(k => k >= 0 ? '#2ed573' : '#ff4757'),
+  }]},
+  options: { responsive: true, plugins: { legend: { display: false } },
+    scales: { x: { ticks: { color: '#7a8699' }, grid: { display: false } }, y: { ticks: { color: '#7a8699' }, grid: { color: '#232733' } } } }
+});
+
+document.getElementById('trade-rows').innerHTML = data.trades.slice().reverse().map(t => `
+  <tr>
+    <td>${t.direction.toUpperCase()}</td>
+    <td>${t.entry_price}</td>
+    <td>${t.sl_price}</td>
+    <td>${t.tp1}</td>
+    <td>${t.score}</td>
+    <td style="color:${t.outcome === 'WIN' ? '#2ed573' : '#ff4757'}">${t.outcome}</td>
+    <td style="color:${t.pnl >= 0 ? '#2ed573' : '#ff4757'}">${t.pnl >= 0 ? '+' : ''}$${t.pnl.toFixed(2)}</td>
+  </tr>
+`).join('');
+</script>
+</body>
+</html>
