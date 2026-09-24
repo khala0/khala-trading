@@ -158,6 +158,41 @@ def generate_signal(symbol, candles_4h, candles_1h, candles_5m, candles_15m=None
     else:
         sl_data['sl_capped'] = False
 
+    # Minimum SL floor for specific symbols where backtesting showed losing
+    # trades had systematically TIGHTER stops than winning trades -- i.e.
+    # the 15M anchor was placing stops too close to entry, getting stopped
+    # out on normal volatility noise before the real move could develop.
+    # Evidence: XAGUSD backtest (78 trades) showed losers averaged $2.19
+    # stop distance vs $4.06 for winners. This floor forces a wider stop
+    # for symbols with this signature -- add others here if their own
+    # diagnostics show the same pattern.
+    MIN_SL_ATR_MULTIPLE_OVERRIDES = {
+        'XAGUSD': 2.5,
+    }
+    min_multiple = MIN_SL_ATR_MULTIPLE_OVERRIDES.get(symbol)
+    if min_multiple and sl_data['atr_value'] > 0:
+        current_distance = abs(entry_price - sl_data['sl_price'])
+        min_distance = sl_data['atr_value'] * min_multiple
+        if current_distance < min_distance:
+            widened_sl_price = (
+                entry_price + min_distance if direction == 'bearish'
+                else entry_price - min_distance
+            )
+            sl_data['sl_price'] = round(widened_sl_price, 5)
+            sl_data['sl_widened'] = True
+
+    # Symbol + direction specific score requirement. XAGUSD backtest (78
+    # trades) showed bearish setups winning only 23.1% (6W/20L) vs 42.3%
+    # for bullish (22W/30L) -- likely reflects the current precious-metals
+    # bull market rather than a permanent flaw, but real and costly right
+    # now. Requiring a higher bar for bearish XAGUSD lets only the
+    # strongest counter-trend setups through instead of banning them
+    # outright (which would miss a genuine reversal if the trend changes).
+    DIRECTIONAL_SCORE_OVERRIDES = {
+        ('XAGUSD', 'bearish'): 8.5,
+    }
+    required_score_override = DIRECTIONAL_SCORE_OVERRIDES.get((symbol, direction))
+
     # Sanity guard, mirrors the check in the original signal_engine
     if direction == 'bearish' and sl_data['sl_price'] <= entry_price:
         return _no_trade_result(
@@ -235,7 +270,8 @@ def generate_signal(symbol, candles_4h, candles_1h, candles_5m, candles_15m=None
         reward_potential = 0
 
     score = min(trend_pts + htf_pts + mtf_pts + exec_pts + pd_pts + fib_pts + crt_pts, 10)
-    is_signal = score >= signal_engine.MIN_SIGNAL_SCORE
+    effective_threshold = required_score_override if required_score_override else signal_engine.MIN_SIGNAL_SCORE
+    is_signal = score >= effective_threshold
 
     if is_signal:
         status = 'A+ SETUP'
