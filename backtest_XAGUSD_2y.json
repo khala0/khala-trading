@@ -1,179 +1,172 @@
 {
   "symbol": "XAGUSD",
   "stats": {
-    "total_signals": 79,
-    "resolved": 78,
+    "total_signals": 72,
+    "resolved": 71,
     "pending_at_end": 1,
-    "wins": 28,
-    "losses": 50,
-    "win_rate": 35.9,
-    "profit_factor": 0.84,
-    "expectancy_per_trade": -10.13,
-    "total_pnl": -789.98,
-    "max_drawdown": 1503.74,
+    "wins": 29,
+    "losses": 42,
+    "win_rate": 40.8,
+    "profit_factor": 1.03,
+    "expectancy_per_trade": 2.03,
+    "total_pnl": 143.93,
+    "max_drawdown": 838.76,
     "average_rr": 1.5,
     "weekday_breakdown": {
       "1": {
-        "wins": 10,
-        "losses": 10
-      },
-      "4": {
-        "wins": 7,
-        "losses": 12
+        "wins": 4,
+        "losses": 11
       },
       "3": {
-        "wins": 8,
-        "losses": 23
+        "wins": 13,
+        "losses": 16
+      },
+      "4": {
+        "wins": 5,
+        "losses": 5
       },
       "0": {
-        "wins": 3,
-        "losses": 5
+        "wins": 5,
+        "losses": 8
+      },
+      "6": {
+        "wins": 2,
+        "losses": 2
       }
     }
   },
   "trades": [
     {
       "symbol": "XAGUSD",
-      "direction": "bullish",
-      "entry_price": 31.965,
-      "sl_price": 31.47268,
-      "tp1": 32.70348,
-      "score": 6,
-      "entry_time": 1728349200,
+      "direction": "bearish",
+      "entry_price": 31.4,
+      "sl_price": 32.28482,
+      "tp1": 30.07277,
+      "score": 9,
+      "entry_time": 1728997200,
       "outcome": "LOSS",
-      "pnl": -100.93
+      "pnl": -101.75
     },
     {
       "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 31.46,
-      "sl_price": 32.99,
-      "tp1": 29.165,
+      "direction": "bullish",
+      "entry_price": 32.005,
+      "sl_price": 31.31483,
+      "tp1": 33.04026,
       "score": 7,
-      "entry_time": 1728352800,
-      "outcome": "LOSS",
-      "pnl": -99.45
+      "entry_time": 1729123200,
+      "outcome": "WIN",
+      "pnl": 150.11
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
       "entry_price": 33.085,
-      "sl_price": 31.59216,
-      "tp1": 35.32426,
+      "sl_price": 31.555,
+      "tp1": 35.38,
       "score": 7,
       "entry_time": 1729267200,
       "outcome": "LOSS",
-      "pnl": -97.03
+      "pnl": -99.45
     },
     {
       "symbol": "XAGUSD",
       "direction": "bearish",
-      "entry_price": 31.235,
-      "sl_price": 32.72036,
-      "tp1": 29.00696,
-      "score": 7,
-      "entry_time": 1730937600,
-      "outcome": "LOSS",
-      "pnl": -96.55
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bullish",
-      "entry_price": 32.725,
-      "sl_price": 31.14482,
-      "tp1": 35.09527,
-      "score": 7,
-      "entry_time": 1733749200,
-      "outcome": "LOSS",
-      "pnl": -102.71
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 31.25,
-      "sl_price": 33.11572,
-      "tp1": 28.45142,
-      "score": 7,
-      "entry_time": 1734087600,
-      "outcome": "LOSS",
-      "pnl": -102.61
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bullish",
-      "entry_price": 32.815,
-      "sl_price": 32.02589,
-      "tp1": 33.99866,
-      "score": 7,
-      "entry_time": 1738681200,
-      "outcome": "LOSS",
-      "pnl": -98.64
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 32.0,
-      "sl_price": 32.84071,
-      "tp1": 30.73893,
-      "score": 7,
-      "entry_time": 1739275200,
-      "outcome": "LOSS",
-      "pnl": -100.89
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bullish",
-      "entry_price": 32.72,
-      "sl_price": 31.72054,
-      "tp1": 34.21919,
-      "score": 7,
-      "entry_time": 1739408400,
+      "entry_price": 32.07,
+      "sl_price": 33.2709,
+      "tp1": 30.26865,
+      "score": 9,
+      "entry_time": 1731009600,
       "outcome": "WIN",
-      "pnl": 149.92
+      "pnl": 153.11
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bearish",
+      "entry_price": 30.595,
+      "sl_price": 31.44947,
+      "tp1": 29.31329,
+      "score": 9,
+      "entry_time": 1731643200,
+      "outcome": "LOSS",
+      "pnl": -98.26
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
-      "entry_price": 33.74,
-      "sl_price": 32.31144,
-      "tp1": 35.88284,
+      "entry_price": 31.455,
+      "sl_price": 30.21072,
+      "tp1": 33.32142,
       "score": 7,
-      "entry_time": 1739538000,
+      "entry_time": 1731985200,
       "outcome": "LOSS",
-      "pnl": -100.0
+      "pnl": -99.54
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 31.36,
+      "sl_price": 29.68053,
+      "tp1": 33.87921,
+      "score": 7,
+      "entry_time": 1733205600,
+      "outcome": "LOSS",
+      "pnl": -100.77
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 30.41,
+      "sl_price": 29.78677,
+      "tp1": 31.34484,
+      "score": 7,
+      "entry_time": 1735221600,
+      "outcome": "LOSS",
+      "pnl": -99.72
     },
     {
       "symbol": "XAGUSD",
       "direction": "bearish",
-      "entry_price": 32.32,
-      "sl_price": 32.95661,
-      "tp1": 31.36508,
+      "entry_price": 29.97,
+      "sl_price": 30.57447,
+      "tp1": 29.06329,
+      "score": 9,
+      "entry_time": 1736139600,
+      "outcome": "LOSS",
+      "pnl": -99.74
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 30.88,
+      "sl_price": 29.72536,
+      "tp1": 32.61196,
       "score": 7,
-      "entry_time": 1740466800,
+      "entry_time": 1736161200,
       "outcome": "WIN",
-      "pnl": 148.01
+      "pnl": 147.22
     },
     {
       "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 31.965,
-      "sl_price": 32.24054,
-      "tp1": 31.55169,
-      "score": 6,
-      "entry_time": 1740992400,
+      "direction": "bullish",
+      "entry_price": 32.525,
+      "sl_price": 31.30072,
+      "tp1": 34.36142,
+      "score": 7,
+      "entry_time": 1738245600,
       "outcome": "LOSS",
-      "pnl": -100.57
+      "pnl": -97.94
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
       "entry_price": 32.575,
-      "sl_price": 31.52196,
-      "tp1": 34.15456,
+      "sl_price": 31.25983,
+      "tp1": 34.54776,
       "score": 7,
       "entry_time": 1741089600,
       "outcome": "WIN",
-      "pnl": 150.06
+      "pnl": 147.96
     },
     {
       "symbol": "XAGUSD",
@@ -188,17 +181,6 @@
     },
     {
       "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 33.435,
-      "sl_price": 34.31518,
-      "tp1": 32.11473,
-      "score": 7,
-      "entry_time": 1742565600,
-      "outcome": "LOSS",
-      "pnl": -101.22
-    },
-    {
-      "symbol": "XAGUSD",
       "direction": "bullish",
       "entry_price": 34.75,
       "sl_price": 33.93536,
@@ -207,39 +189,6 @@
       "entry_time": 1743069600,
       "outcome": "LOSS",
       "pnl": -101.83
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 34.14,
-      "sl_price": 35.03839,
-      "tp1": 32.79241,
-      "score": 7,
-      "entry_time": 1743642000,
-      "outcome": "WIN",
-      "pnl": 148.23
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 32.8,
-      "sl_price": 34.68572,
-      "tp1": 29.97142,
-      "score": 7,
-      "entry_time": 1743670800,
-      "outcome": "WIN",
-      "pnl": 155.57
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 29.66,
-      "sl_price": 32.47428,
-      "tp1": 25.43858,
-      "score": 7,
-      "entry_time": 1743775200,
-      "outcome": "LOSS",
-      "pnl": -98.5
     },
     {
       "symbol": "XAGUSD",
@@ -267,155 +216,111 @@
       "symbol": "XAGUSD",
       "direction": "bullish",
       "entry_price": 32.45,
-      "sl_price": 31.85375,
-      "tp1": 33.34438,
+      "sl_price": 31.04375,
+      "tp1": 34.55938,
       "score": 7,
       "entry_time": 1746064800,
-      "outcome": "LOSS",
-      "pnl": -101.36
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 31.915,
-      "sl_price": 33.31553,
-      "tp1": 29.81421,
-      "score": 7,
-      "entry_time": 1746097200,
-      "outcome": "LOSS",
-      "pnl": -98.04
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bullish",
-      "entry_price": 33.32,
-      "sl_price": 31.88518,
-      "tp1": 35.47223,
-      "score": 7,
-      "entry_time": 1746500400,
-      "outcome": "LOSS",
-      "pnl": -100.44
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 31.93,
-      "sl_price": 33.3025,
-      "tp1": 29.87125,
-      "score": 7,
-      "entry_time": 1747285200,
-      "outcome": "LOSS",
-      "pnl": -102.94
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bullish",
-      "entry_price": 33.26,
-      "sl_price": 31.92428,
-      "tp1": 35.26358,
-      "score": 7,
-      "entry_time": 1747771200,
       "outcome": "WIN",
-      "pnl": 150.27
+      "pnl": 147.66
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
-      "entry_price": 35.745,
-      "sl_price": 34.59216,
-      "tp1": 37.47426,
+      "entry_price": 34.455,
+      "sl_price": 33.02644,
+      "tp1": 36.59784,
       "score": 7,
-      "entry_time": 1749114000,
+      "entry_time": 1748872800,
       "outcome": "WIN",
-      "pnl": 146.99
+      "pnl": 150.0
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
-      "entry_price": 36.92,
-      "sl_price": 36.09482,
-      "tp1": 38.15777,
+      "entry_price": 36.455,
+      "sl_price": 35.51215,
+      "tp1": 37.86928,
       "score": 7,
-      "entry_time": 1752152400,
+      "entry_time": 1749452400,
+      "outcome": "LOSS",
+      "pnl": -99.0
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 36.36,
+      "sl_price": 35.48036,
+      "tp1": 37.67946,
+      "score": 7,
+      "entry_time": 1750906800,
+      "outcome": "LOSS",
+      "pnl": -101.16
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 35.93,
+      "sl_price": 34.86393,
+      "tp1": 37.52911,
+      "score": 10,
+      "entry_time": 1751234400,
       "outcome": "WIN",
-      "pnl": 148.53
+      "pnl": 151.92
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
-      "entry_price": 38.105,
-      "sl_price": 36.725,
-      "tp1": 40.175,
+      "entry_price": 37.68,
+      "sl_price": 36.25,
+      "tp1": 39.825,
       "score": 7,
-      "entry_time": 1752210000,
-      "outcome": "LOSS",
-      "pnl": -96.6
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 36.365,
-      "sl_price": 37.46411,
-      "tp1": 34.71634,
-      "score": 7,
-      "entry_time": 1753956000,
-      "outcome": "LOSS",
-      "pnl": -98.92
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 37.47,
-      "sl_price": 37.6575,
-      "tp1": 37.18875,
-      "score": 6,
-      "entry_time": 1754359200,
-      "outcome": "LOSS",
-      "pnl": -100.31
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 37.995,
-      "sl_price": 38.11982,
-      "tp1": 37.80777,
-      "score": 6,
-      "entry_time": 1754524800,
-      "outcome": "LOSS",
-      "pnl": -99.86
+      "entry_time": 1752174000,
+      "outcome": "WIN",
+      "pnl": 150.15
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
-      "entry_price": 38.115,
-      "sl_price": 37.52429,
-      "tp1": 39.00107,
+      "entry_price": 39.5,
+      "sl_price": 38.78125,
+      "tp1": 40.57812,
       "score": 7,
-      "entry_time": 1754532000,
+      "entry_time": 1753405200,
       "outcome": "LOSS",
-      "pnl": -100.42
+      "pnl": -100.63
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 38.09,
+      "sl_price": 37.52054,
+      "tp1": 38.94419,
+      "score": 7,
+      "entry_time": 1754528400,
+      "outcome": "LOSS",
+      "pnl": -99.66
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
       "entry_price": 38.03,
-      "sl_price": 37.35018,
-      "tp1": 39.04973,
+      "sl_price": 37.2059,
+      "tp1": 39.26615,
       "score": 9,
       "entry_time": 1755010800,
       "outcome": "LOSS",
-      "pnl": -98.57
+      "pnl": -98.89
     },
     {
       "symbol": "XAGUSD",
       "direction": "bearish",
-      "entry_price": 37.305,
-      "sl_price": 38.26821,
-      "tp1": 35.86019,
-      "score": 7,
-      "entry_time": 1755619200,
+      "entry_price": 37.88,
+      "sl_price": 38.55858,
+      "tp1": 36.86213,
+      "score": 9,
+      "entry_time": 1755741600,
       "outcome": "LOSS",
-      "pnl": -101.14
+      "pnl": -98.39
     },
     {
       "symbol": "XAGUSD",
@@ -443,45 +348,23 @@
       "symbol": "XAGUSD",
       "direction": "bullish",
       "entry_price": 44.6,
-      "sl_price": 43.74293,
-      "tp1": 45.8856,
+      "sl_price": 43.46465,
+      "tp1": 46.30302,
       "score": 7,
       "entry_time": 1758621600,
       "outcome": "WIN",
-      "pnl": 147.84
+      "pnl": 153.27
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
-      "entry_price": 45.84,
-      "sl_price": 44.64,
-      "tp1": 47.64,
+      "entry_price": 46.385,
+      "sl_price": 44.62375,
+      "tp1": 49.02687,
       "score": 7,
-      "entry_time": 1758891600,
+      "entry_time": 1758898800,
       "outcome": "WIN",
-      "pnl": 153.0
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bullish",
-      "entry_price": 47.23,
-      "sl_price": 46.55875,
-      "tp1": 48.23687,
-      "score": 6,
-      "entry_time": 1759363200,
-      "outcome": "LOSS",
-      "pnl": -100.69
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bullish",
-      "entry_price": 47.06,
-      "sl_price": 45.38,
-      "tp1": 49.58,
-      "score": 8,
-      "entry_time": 1759467600,
-      "outcome": "WIN",
-      "pnl": 151.2
+      "pnl": 145.3
     },
     {
       "symbol": "XAGUSD",
@@ -497,35 +380,57 @@
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
-      "entry_price": 48.695,
-      "sl_price": 46.41518,
-      "tp1": 52.11473,
-      "score": 8,
-      "entry_time": 1760313600,
+      "entry_price": 47.3,
+      "sl_price": 45.22947,
+      "tp1": 50.40579,
+      "score": 6,
+      "entry_time": 1760029200,
       "outcome": "WIN",
-      "pnl": 153.89
+      "pnl": 155.29
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
-      "entry_price": 52.14,
-      "sl_price": 48.372,
-      "tp1": 57.792,
+      "entry_price": 50.38,
+      "sl_price": 46.40811,
+      "tp1": 56.33784,
       "score": 7,
-      "entry_time": 1760410800,
+      "entry_time": 1760364000,
       "outcome": "LOSS",
-      "pnl": -94.2
+      "pnl": -99.3
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 48.525,
+      "sl_price": 46.68161,
+      "tp1": 51.29009,
+      "score": 7,
+      "entry_time": 1761832800,
+      "outcome": "LOSS",
+      "pnl": -101.39
     },
     {
       "symbol": "XAGUSD",
       "direction": "bearish",
-      "entry_price": 48.925,
-      "sl_price": 52.36468,
-      "tp1": 43.76548,
-      "score": 7,
-      "entry_time": 1761033600,
+      "entry_price": 47.54,
+      "sl_price": 49.13589,
+      "tp1": 45.14617,
+      "score": 9,
+      "entry_time": 1762272000,
       "outcome": "LOSS",
-      "pnl": -103.19
+      "pnl": -103.73
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 49.06,
+      "sl_price": 47.57339,
+      "tp1": 51.28992,
+      "score": 7,
+      "entry_time": 1762736400,
+      "outcome": "WIN",
+      "pnl": 144.94
     },
     {
       "symbol": "XAGUSD",
@@ -540,36 +445,25 @@
     },
     {
       "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 49.425,
-      "sl_price": 51.60875,
-      "tp1": 46.14937,
-      "score": 7,
-      "entry_time": 1763406000,
-      "outcome": "LOSS",
-      "pnl": -98.27
-    },
-    {
-      "symbol": "XAGUSD",
       "direction": "bullish",
       "entry_price": 51.285,
-      "sl_price": 49.685,
-      "tp1": 53.685,
+      "sl_price": 48.985,
+      "tp1": 54.735,
       "score": 9,
       "entry_time": 1763596800,
       "outcome": "LOSS",
-      "pnl": -104.0
+      "pnl": -103.5
     },
     {
       "symbol": "XAGUSD",
       "direction": "bearish",
-      "entry_price": 48.67,
-      "sl_price": 51.74911,
-      "tp1": 44.05133,
-      "score": 7,
-      "entry_time": 1763708400,
+      "entry_price": 50.31,
+      "sl_price": 52.36535,
+      "tp1": 47.22698,
+      "score": 9,
+      "entry_time": 1764003600,
       "outcome": "LOSS",
-      "pnl": -92.37
+      "pnl": -102.77
     },
     {
       "symbol": "XAGUSD",
@@ -597,276 +491,309 @@
       "symbol": "XAGUSD",
       "direction": "bullish",
       "entry_price": 66.55,
-      "sl_price": 64.5,
-      "tp1": 69.62501,
+      "sl_price": 63.6,
+      "tp1": 70.97501,
       "score": 7,
       "entry_time": 1766016000,
-      "outcome": "LOSS",
-      "pnl": -102.5
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bullish",
-      "entry_price": 66.95,
-      "sl_price": 63.96321,
-      "tp1": 71.43018,
-      "score": 7,
-      "entry_time": 1766156400,
       "outcome": "WIN",
-      "pnl": 156.81
+      "pnl": 154.88
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
-      "entry_price": 71.44,
-      "sl_price": 67.62339,
-      "tp1": 77.16492,
+      "entry_price": 70.86,
+      "sl_price": 67.65892,
+      "tp1": 75.66162,
       "score": 7,
-      "entry_time": 1766512800,
+      "entry_time": 1766509200,
       "outcome": "WIN",
-      "pnl": 143.12
+      "pnl": 144.05
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
-      "entry_price": 77.69,
-      "sl_price": 71.22288,
-      "tp1": 87.39069,
+      "entry_price": 75.1,
+      "sl_price": 69.58288,
+      "tp1": 83.37568,
       "score": 7,
-      "entry_time": 1766772000,
+      "entry_time": 1766743200,
       "outcome": "LOSS",
-      "pnl": -97.01
+      "pnl": -110.34
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
-      "entry_price": 72.33,
-      "sl_price": 68.7116,
-      "tp1": 77.7576,
+      "entry_price": 73.475,
+      "sl_price": 67.55715,
+      "tp1": 82.35177,
       "score": 9,
-      "entry_time": 1767052800,
+      "entry_time": 1767330000,
       "outcome": "WIN",
-      "pnl": 162.83
+      "pnl": 133.15
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
-      "entry_price": 77.535,
-      "sl_price": 68.59892,
-      "tp1": 90.93913,
-      "score": 8,
-      "entry_time": 1767117600,
+      "entry_price": 82.2,
+      "sl_price": 76.19518,
+      "tp1": 91.20722,
+      "score": 7,
+      "entry_time": 1767740400,
+      "outcome": "LOSS",
+      "pnl": -90.07
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 77.73,
+      "sl_price": 72.555,
+      "tp1": 85.49251,
+      "score": 7,
+      "entry_time": 1767830400,
       "outcome": "WIN",
-      "pnl": 134.04
+      "pnl": 155.25
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
-      "entry_price": 92.13,
-      "sl_price": 88.4741,
-      "tp1": 97.61384,
+      "entry_price": 85.63,
+      "sl_price": 78.08744,
+      "tp1": 96.94383,
       "score": 7,
-      "entry_time": 1768435200,
-      "outcome": "LOSS",
-      "pnl": -91.4
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bullish",
-      "entry_price": 88.555,
-      "sl_price": 87.75678,
-      "tp1": 89.75233,
-      "score": 6,
-      "entry_time": 1768568400,
-      "outcome": "LOSS",
-      "pnl": -99.78
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bullish",
-      "entry_price": 87.585,
-      "sl_price": 87.55607,
-      "tp1": 87.62839,
-      "score": 6,
-      "entry_time": 1768575600,
-      "outcome": "LOSS",
-      "pnl": -99.95
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bullish",
-      "entry_price": 94.275,
-      "sl_price": 84.84589,
-      "tp1": 108.41867,
-      "score": 7,
-      "entry_time": 1768885200,
+      "entry_time": 1768222800,
       "outcome": "WIN",
-      "pnl": 141.44
+      "pnl": 169.71
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
-      "entry_price": 107.465,
-      "sl_price": 98.35644,
-      "tp1": 121.12783,
+      "entry_price": 96.96,
+      "sl_price": 91.81464,
+      "tp1": 104.67804,
       "score": 7,
-      "entry_time": 1769389200,
+      "entry_time": 1769122800,
       "outcome": "WIN",
-      "pnl": 136.63
+      "pnl": 154.36
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
-      "entry_price": 119.27,
-      "sl_price": 113.18143,
-      "tp1": 128.40285,
+      "entry_price": 104.975,
+      "sl_price": 96.49875,
+      "tp1": 117.68937,
       "score": 7,
-      "entry_time": 1769695200,
+      "entry_time": 1769382000,
+      "outcome": "WIN",
+      "pnl": 127.14
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 111.28,
+      "sl_price": 97.86716,
+      "tp1": 131.39926,
+      "score": 7,
+      "entry_time": 1769450400,
       "outcome": "LOSS",
-      "pnl": -91.33
+      "pnl": -67.06
     },
     {
       "symbol": "XAGUSD",
       "direction": "bearish",
-      "entry_price": 98.05,
-      "sl_price": 121.65196,
-      "tp1": 62.64707,
-      "score": 7,
-      "entry_time": 1769763600,
-      "outcome": "WIN",
-      "pnl": 177.01
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 63.02,
-      "sl_price": 75.24428,
-      "tp1": 44.68358,
-      "score": 7,
-      "entry_time": 1774245600,
-      "outcome": "LOSS",
-      "pnl": -122.24
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bullish",
-      "entry_price": 74.825,
-      "sl_price": 68.13446,
-      "tp1": 84.8608,
-      "score": 7,
-      "entry_time": 1774972800,
-      "outcome": "WIN",
-      "pnl": 150.54
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bullish",
-      "entry_price": 86.37,
-      "sl_price": 78.73493,
-      "tp1": 97.82261,
-      "score": 7,
-      "entry_time": 1778504400,
-      "outcome": "LOSS",
-      "pnl": -114.53
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 78.355,
-      "sl_price": 86.005,
-      "tp1": 66.88001,
-      "score": 7,
-      "entry_time": 1778821200,
-      "outcome": "WIN",
-      "pnl": 172.12
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 66.76,
-      "sl_price": 72.90516,
-      "tp1": 57.54227,
-      "score": 7,
-      "entry_time": 1780894800,
-      "outcome": "WIN",
-      "pnl": 138.27
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 57.32,
-      "sl_price": 63.07716,
-      "tp1": 48.68426,
-      "score": 7,
-      "entry_time": 1782345600,
-      "outcome": "LOSS",
-      "pnl": -86.36
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bullish",
-      "entry_price": 62.87,
-      "sl_price": 60.20464,
-      "tp1": 66.86804,
-      "score": 7,
-      "entry_time": 1783044000,
-      "outcome": "LOSS",
-      "pnl": -106.61
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bullish",
-      "entry_price": 59.41,
-      "sl_price": 57.00161,
-      "tp1": 63.02258,
+      "entry_price": 79.915,
+      "sl_price": 90.69805,
+      "tp1": 63.74043,
       "score": 9,
-      "entry_time": 1783576800,
+      "entry_time": 1770634800,
       "outcome": "LOSS",
-      "pnl": -96.34
+      "pnl": -107.83
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 87.085,
+      "sl_price": 81.7091,
+      "tp1": 95.14885,
+      "score": 6,
+      "entry_time": 1772114400,
+      "outcome": "WIN",
+      "pnl": 161.28
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 96.18,
+      "sl_price": 88.44036,
+      "tp1": 107.78946,
+      "score": 7,
+      "entry_time": 1772406000,
+      "outcome": "LOSS",
+      "pnl": -116.09
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 87.015,
+      "sl_price": 79.40697,
+      "tp1": 98.42704,
+      "score": 6,
+      "entry_time": 1772514000,
+      "outcome": "LOSS",
+      "pnl": -114.12
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 87.345,
+      "sl_price": 81.10035,
+      "tp1": 96.71198,
+      "score": 7,
+      "entry_time": 1773086400,
+      "outcome": "LOSS",
+      "pnl": -93.67
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 81.255,
+      "sl_price": 75.5925,
+      "tp1": 89.74874,
+      "score": 9,
+      "entry_time": 1773723600,
+      "outcome": "LOSS",
+      "pnl": -113.25
     },
     {
       "symbol": "XAGUSD",
       "direction": "bearish",
-      "entry_price": 56.835,
-      "sl_price": 59.87589,
-      "tp1": 52.27366,
-      "score": 7,
-      "entry_time": 1784196000,
+      "entry_price": 69.865,
+      "sl_price": 78.0534,
+      "tp1": 57.58239,
+      "score": 9,
+      "entry_time": 1774339200,
       "outcome": "LOSS",
-      "pnl": -106.43
+      "pnl": -81.88
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 77.905,
+      "sl_price": 72.9975,
+      "tp1": 85.26625,
+      "score": 7,
+      "entry_time": 1776150000,
+      "outcome": "LOSS",
+      "pnl": -98.15
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bearish",
+      "entry_price": 73.795,
+      "sl_price": 76.7441,
+      "tp1": 69.37135,
+      "score": 9,
+      "entry_time": 1777536000,
+      "outcome": "LOSS",
+      "pnl": -103.22
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 76.805,
+      "sl_price": 72.61429,
+      "tp1": 83.09107,
+      "score": 7,
+      "entry_time": 1777640400,
+      "outcome": "LOSS",
+      "pnl": -104.77
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 73.81,
+      "sl_price": 70.36715,
+      "tp1": 78.97427,
+      "score": 9,
+      "entry_time": 1777888800,
+      "outcome": "WIN",
+      "pnl": 154.93
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 79.34,
+      "sl_price": 76.23465,
+      "tp1": 83.99802,
+      "score": 7,
+      "entry_time": 1778133600,
+      "outcome": "WIN",
+      "pnl": 139.74
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 84.435,
+      "sl_price": 78.77796,
+      "tp1": 92.92055,
+      "score": 7,
+      "entry_time": 1778500800,
+      "outcome": "LOSS",
+      "pnl": -113.14
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bearish",
+      "entry_price": 76.405,
+      "sl_price": 80.3568,
+      "tp1": 70.4773,
+      "score": 9,
+      "entry_time": 1779321600,
+      "outcome": "WIN",
+      "pnl": 148.19
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 70.16,
+      "sl_price": 65.4255,
+      "tp1": 77.26176,
+      "score": 7,
+      "entry_time": 1781474400,
+      "outcome": "LOSS",
+      "pnl": -94.69
+    },
+    {
+      "symbol": "XAGUSD",
+      "direction": "bullish",
+      "entry_price": 60.325,
+      "sl_price": 56.44482,
+      "tp1": 66.14527,
+      "score": 7,
+      "entry_time": 1782828000,
+      "outcome": "LOSS",
+      "pnl": -97.0
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
       "entry_price": 60.165,
-      "sl_price": 58.71946,
-      "tp1": 62.33331,
+      "sl_price": 57.78733,
+      "tp1": 63.73151,
       "score": 7,
       "entry_time": 1784764800,
       "outcome": "LOSS",
-      "pnl": -101.19
+      "pnl": -95.11
     },
     {
       "symbol": "XAGUSD",
       "direction": "bullish",
       "entry_price": 58.47,
-      "sl_price": 56.90321,
-      "tp1": 60.82019,
+      "sl_price": 56.18608,
+      "tp1": 61.89588,
       "score": 9,
       "entry_time": 1784876400,
-      "outcome": "LOSS",
-      "pnl": -101.84
-    },
-    {
-      "symbol": "XAGUSD",
-      "direction": "bullish",
-      "entry_price": 58.165,
-      "sl_price": 56.40143,
-      "tp1": 60.81036,
-      "score": 9,
-      "entry_time": 1785369600,
       "outcome": "WIN",
-      "pnl": 145.49
+      "pnl": 154.16
     },
     {
       "symbol": "XAGUSD",
@@ -892,12 +819,12 @@
     },
     {
       "symbol": "XAGUSD",
-      "direction": "bearish",
-      "entry_price": 64.02,
-      "sl_price": 68.45856,
-      "tp1": 57.36215,
+      "direction": "bullish",
+      "entry_price": 66.0,
+      "sl_price": 62.25732,
+      "tp1": 71.61402,
       "score": 7,
-      "entry_time": 1789077600,
+      "entry_time": 1789646400,
       "outcome": "PENDING",
       "pnl": 0.0
     }

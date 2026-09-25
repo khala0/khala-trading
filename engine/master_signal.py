@@ -181,17 +181,25 @@ def generate_signal(symbol, candles_4h, candles_1h, candles_5m, candles_15m=None
             sl_data['sl_price'] = round(widened_sl_price, 5)
             sl_data['sl_widened'] = True
 
-    # Symbol + direction specific score requirement. XAGUSD backtest (78
-    # trades) showed bearish setups winning only 23.1% (6W/20L) vs 42.3%
-    # for bullish (22W/30L) -- likely reflects the current precious-metals
-    # bull market rather than a permanent flaw, but real and costly right
-    # now. Requiring a higher bar for bearish XAGUSD lets only the
-    # strongest counter-trend setups through instead of banning them
-    # outright (which would miss a genuine reversal if the trend changes).
-    DIRECTIONAL_SCORE_OVERRIDES = {
-        ('XAGUSD', 'bearish'): 8.5,
+    # Bearish XAGUSD is fully disabled. First tried a stricter 8.5 score
+    # bar instead of an outright ban -- but a follow-up 2-year backtest
+    # showed that made it WORSE, not better (win rate dropped from 23.1%
+    # to 16.7% on the trades that still got through), meaning score isn't
+    # the right lever here at all. Two separate datasets now consistently
+    # show bearish XAGUSD losing regardless of how selective the score bar
+    # is, which points to a structural/regime issue (current precious-
+    # metals bull market) rather than something a confidence threshold can
+    # filter for. Revisit if a later backtest shows the pattern reversing.
+    DISABLED_SYMBOL_DIRECTIONS = {
+        ('XAGUSD', 'bearish'),
     }
-    required_score_override = DIRECTIONAL_SCORE_OVERRIDES.get((symbol, direction))
+    if (symbol, direction) in DISABLED_SYMBOL_DIRECTIONS:
+        return _no_trade_result(
+            symbol, 'NO TRADE',
+            f'{direction.capitalize()} {symbol} signals are currently disabled -- backtesting showed '
+            f'consistently poor performance in this direction regardless of score threshold',
+            direction=direction,
+        )
 
     # Sanity guard, mirrors the check in the original signal_engine
     if direction == 'bearish' and sl_data['sl_price'] <= entry_price:
@@ -270,8 +278,7 @@ def generate_signal(symbol, candles_4h, candles_1h, candles_5m, candles_15m=None
         reward_potential = 0
 
     score = min(trend_pts + htf_pts + mtf_pts + exec_pts + pd_pts + fib_pts + crt_pts, 10)
-    effective_threshold = required_score_override if required_score_override else signal_engine.MIN_SIGNAL_SCORE
-    is_signal = score >= effective_threshold
+    is_signal = score >= signal_engine.MIN_SIGNAL_SCORE
 
     if is_signal:
         status = 'A+ SETUP'
